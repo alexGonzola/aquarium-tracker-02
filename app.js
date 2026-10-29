@@ -1136,7 +1136,23 @@ try {
       JSON.stringify(neueWerte[index])
     );
   });
+
+  // 🔒 Alle gespeicherten Daten nochmals kontrollieren
+  const allesKorrektGespeichert = schluessel.every(
+    (key, index) =>
+      localStorage.getItem(key) ===
+      JSON.stringify(neueWerte[index])
+  );
+
+  if (!allesKorrektGespeichert) {
+    throw new Error(
+      "Wiederherstellung fehlgeschlagen: Gespeicherte Daten stimmen nicht überein."
+    );
+  }
+
 } catch (fehler) {
+
+  
   // Bei einem Speicherfehler alte Daten wiederherstellen
   let ruecksicherungFehlgeschlagen = false;
 
