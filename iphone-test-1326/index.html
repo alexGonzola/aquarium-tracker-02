@@ -1,0 +1,561 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1">
+  <title>Aquarium – isolierter iPhone-Test</title>
+  <link rel="stylesheet" href="style.css">
+  
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="icon" type="image/png" href="icon-192.png">
+<script src="testspeicher.js" defer></script>
+<script src="test-sdk.js" defer></script>
+<script src="schreibschutz.js" defer></script>
+<script src="app.js" defer></script>
+<script src="wartung.js" defer></script>
+<script src="supabase.js" defer></script>
+<style>#cloudLogin{display:none} #chromeTestBereich{border:3px solid #197a52;margin:12px;padding:16px} #chromeTestBereich button{margin:8px 4px}</style>
+<link rel="manifest" href="manifest.json">
+<script src="offline-ui.js" defer></script>
+</head>
+<body>
+
+  <!-- Supabase Anmeldung -->
+<section id="cloudLogin">
+  <h2>☁️ Cloud-Anmeldung</h2>
+
+  <form id="cloudLoginForm">
+    <label for="cloudEmail">E-Mail-Adresse</label>
+    <input
+      type="email"
+      id="cloudEmail"
+      autocomplete="username"
+      required
+    >
+
+    <label for="cloudPasswort">Passwort</label>
+    <input
+      type="password"
+      id="cloudPasswort"
+      autocomplete="current-password"
+      required
+    >
+
+    <button type="submit">🔐 Anmelden</button>
+  </form>
+
+  <p id="cloudStatus">Noch nicht angemeldet.</p>
+
+  <!-- ☁️ Synchronisierungsstatus -->
+<div id="cloudSyncBereich">
+  <h3>🔄 Cloud-Synchronisierung</h3>
+
+  <p id="cloudSyncStatus" role="status" aria-live="polite">
+    ⚪ Cloud-Status noch nicht geprüft.
+  </p>
+</div>
+
+  <button type="button" id="cloudSpeichern">
+  ☁️ Aquarium-Daten in Cloud speichern
+</button>
+
+<button type="button" id="cloudLaden">
+  ☁️ Aquarium-Daten aus Cloud laden
+</button>
+
+<!-- 🔒 Sichere Erstverbindung mit der Cloud -->
+<button type="button" id="cloudErstverbindung">
+  🔗 Erstverbindung mit Cloud herstellen
+</button>
+
+<p id="cloudErstverbindungStatus">
+  🔒 Erstverbindung noch nicht eingerichtet.
+</p>
+
+<p id="cloudLadenStatus"></p>
+
+<p id="cloudSpeicherStatus"></p>
+
+</section>
+
+  <header>
+    <h1>🐠 Aquarium Tracker</h1>
+    <p>Mein Meerwasseraquarium · 400 Liter</p>
+  </header>
+
+  <main>
+   <section class="card">
+  <h2>Dashboard</h2>
+  <p>Willkommen bei deinem Aquarium Tracker!</p>
+
+  <h3>🔔 Wartungserinnerungen</h3>
+  <div id="wartungsErinnerungen"></div>
+ 
+  <h3>📅 Anstehende Wartungen</h3>
+<div id="naechsteWartungen"></div>
+</section>
+
+
+    <section class="card">
+      <h2>Wasserwert eintragen</h2>
+
+      <form id="werteForm">
+        <label for="parameter">Parameter</label>
+        <select id="parameter">
+          <option value="KH">KH</option>
+          <option value="Ca">Calcium</option>
+          <option value="Mg">Magnesium</option>
+          <option value="NO3">Nitrat (NO₃)</option>
+          <option value="PO4">Phosphat (PO₄)</option>
+          <option value="Salinität">Salinität</option>
+          <option value="Temperatur">Temperatur</option>
+        </select>
+
+        <label for="messwert">Messwert</label>
+        <input id="messwert" type="number"
+               step="any" required
+               placeholder="z. B. 8.1">
+
+        <button type="submit">Wert speichern</button>
+      </form>
+    </section>
+
+<section class="card">
+  <h2>💧 Wasserwechsel</h2>
+
+  <form id="wasserwechselForm">
+    <label for="wasserwechselDatum">Datum</label>
+    <input id="wasserwechselDatum"
+           type="date" required>
+
+    <label for="wasserwechselLiter">
+      Gewechselte Wassermenge (Liter)
+    </label>
+    <input id="wasserwechselLiter"
+           type="number"
+           min="0.1"
+           step="any"
+           placeholder="z. B. 50"
+           required>
+
+    <label for="wasserwechselNotiz">Notiz</label>
+    <input id="wasserwechselNotiz"
+           type="text"
+           placeholder="z. B. Nyos Pure Salz">
+
+    <button type="submit">
+      Wasserwechsel speichern
+    </button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>🔧 Wartung</h2>
+
+  <form id="wartungForm">
+    <label for="wartungTyp">Wartungsart</label>
+    <select id="wartungTyp">
+<option value="filtersocken">Vliesrolle gewechselt</option>
+<option value="aktivkohle">Aktivkohle gewechselt</option>
+<option value="abschaeumer">Abschäumer gereinigt</option>
+<option value="uv">UV-Anlage gereinigt</option>
+<option value="pumpen">Strömungspumpen gereinigt</option>
+<option value="sonstiges">Sonstige Wartung</option>
+    </select>
+
+    <label for="wartungDatum">Datum</label>
+    <input id="wartungDatum"
+           type="date" required>
+
+    <label for="wartungNotiz">Notiz</label>
+    <input id="wartungNotiz"
+           type="text"
+           placeholder="Optional">
+
+    <button type="submit">
+      Wartung speichern
+    </button>
+  </form>
+</section>
+
+    <section class="card">
+      <h2>Letzte Wasserwerte</h2>
+      <div id="aktuelleWerte" class="werte"></div>
+    </section>
+
+    <section class="card">
+  <details>
+    <summary>⚙️ Zielbereiche einstellen</summary>
+
+    <h3>KH (Karbonathärte)</h3>
+
+<label for="khMin">Minimum (dKH)</label>
+<input
+  id="khMin"
+  data-parameter="KH"
+  data-feld="min"
+  type="number"
+  min="0"
+  step="0.1"
+  value="7"
+>
+
+<label for="khMax">Maximum (dKH)</label>
+<input
+  id="khMax"
+  data-parameter="KH"
+  data-feld="max"
+  type="number"
+  min="0"
+  step="0.1"
+  value="9"
+>
+
+<label for="khToleranz">Toleranz (dKH)</label>
+<input
+  id="khToleranz"
+  data-parameter="KH"
+  data-feld="toleranz"
+  type="number"
+  min="0"
+  step="0.1"
+  value="0.5"
+>
+
+<h3>Calcium (Ca)</h3>
+
+<label for="caMin">Minimum (mg/l)</label>
+<input
+  id="caMin"
+  data-parameter="Ca"
+  data-feld="min"
+  type="number"
+  min="0"
+  step="1"
+  value="400"
+>
+
+<label for="caMax">Maximum (mg/l)</label>
+<input
+  id="caMax"
+  data-parameter="Ca"
+  data-feld="max"
+  type="number"
+  min="0"
+  step="1"
+  value="450"
+>
+
+<label for="caToleranz">Toleranz (mg/l)</label>
+<input
+  id="caToleranz"
+  data-parameter="Ca"
+  data-feld="toleranz"
+  type="number"
+  min="0"
+  step="1"
+  value="20"
+>
+
+<h3>Magnesium (Mg)</h3>
+
+<label for="mgMin">Minimum (mg/l)</label>
+<input
+  id="mgMin"
+  data-parameter="Mg"
+  data-feld="min"
+  type="number"
+  min="0"
+  step="1"
+  value="1250"
+>
+
+<label for="mgMax">Maximum (mg/l)</label>
+<input
+  id="mgMax"
+  data-parameter="Mg"
+  data-feld="max"
+  type="number"
+  min="0"
+  step="1"
+  value="1400"
+>
+
+<label for="mgToleranz">Toleranz (mg/l)</label>
+<input
+  id="mgToleranz"
+  data-parameter="Mg"
+  data-feld="toleranz"
+  type="number"
+  min="0"
+  step="1"
+  value="50"
+>
+
+<h3>Nitrat (NO3)</h3>
+
+<label for="no3Min">Minimum (mg/l)</label>
+<input
+  id="no3Min"
+  data-parameter="NO3"
+  data-feld="min"
+  type="number"
+  min="0"
+  step="0.1"
+  value="2"
+>
+
+<label for="no3Max">Maximum (mg/l)</label>
+<input
+  id="no3Max"
+  data-parameter="NO3"
+  data-feld="max"
+  type="number"
+  min="0"
+  step="0.1"
+  value="15"
+>
+
+<label for="no3Toleranz">Toleranz (mg/l)</label>
+<input
+  id="no3Toleranz"
+  data-parameter="NO3"
+  data-feld="toleranz"
+  type="number"
+  min="0"
+  step="0.1"
+  value="5"
+>
+
+<h3>Phosphat (PO4)</h3>
+
+<label for="po4Min">Minimum (mg/l)</label>
+<input
+  id="po4Min"
+  data-parameter="PO4"
+  data-feld="min"
+  type="number"
+  min="0"
+  step="0.01"
+  value="0.03"
+>
+
+<label for="po4Max">Maximum (mg/l)</label>
+<input
+  id="po4Max"
+  data-parameter="PO4"
+  data-feld="max"
+  type="number"
+  min="0"
+  step="0.01"
+  value="0.10"
+>
+
+<label for="po4Toleranz">Toleranz (mg/l)</label>
+<input
+  id="po4Toleranz"
+  data-parameter="PO4"
+  data-feld="toleranz"
+  type="number"
+  min="0"
+  step="0.01"
+  value="0.02"
+>
+
+<h3>Salinität</h3>
+
+<label for="salMin">Minimum (PSU)</label>
+<input
+  id="salMin"
+  data-parameter="Salinität"
+  data-feld="min"
+  type="number"
+  min="0"
+  step="0.1"
+  value="34"
+>
+
+<label for="salMax">Maximum (PSU)</label>
+<input
+  id="salMax"
+  data-parameter="Salinität"
+  data-feld="max"
+  type="number"
+  min="0"
+  step="0.1"
+  value="36"
+>
+
+<label for="salToleranz">Toleranz (PSU)</label>
+<input
+  id="salToleranz"
+  data-parameter="Salinität"
+  data-feld="toleranz"
+  type="number"
+  min="0"
+  step="0.1"
+  value="0.5"
+>
+<h3>Temperatur</h3>
+
+<label for="tempMin">Minimum (°C)</label>
+<input
+  id="tempMin"
+  data-parameter="Temperatur"
+  data-feld="min"
+  type="number"
+  min="0"
+  step="0.1"
+  value="24"
+>
+
+<label for="tempMax">Maximum (°C)</label>
+<input
+  id="tempMax"
+  data-parameter="Temperatur"
+  data-feld="max"
+  type="number"
+  min="0"
+  step="0.1"
+  value="26"
+>
+
+<label for="tempToleranz">Toleranz (°C)</label>
+<input
+  id="tempToleranz"
+  data-parameter="Temperatur"
+  data-feld="toleranz"
+  type="number"
+  min="0"
+  step="0.1"
+  value="0.5"
+>
+
+  </details>
+</section>
+
+<section class="card">
+  <h2>Wasserwerte – Verlauf</h2>
+
+  <label for="diagrammParameter">
+    Parameter auswählen
+  </label>
+
+  <select id="diagrammParameter">
+    <option value="KH">KH</option>
+    <option value="Ca">Calcium</option>
+    <option value="Mg">Magnesium</option>
+    <option value="NO3">Nitrat (NO₃)</option>
+    <option value="PO4">Phosphat (PO₄)</option>
+    <option value="Salinität">Salinität</option>
+    <option value="Temperatur">Temperatur</option>
+  </select>
+
+  <div id="diagramm" class="diagramm"></div>
+</section>
+
+    <section class="card">
+  <details>
+    <summary>📜 Timeline anzeigen</summary>
+    <div id="timeline"></div>
+    <button id="timelineMehr" class="timeline-button" type="button" hidden>
+  ➕ Mehr anzeigen
+</button>
+
+<button id="timelineWeniger" class="timeline-button" type="button" hidden>
+  ➖ Weniger anzeigen
+</button>
+
+  </details>
+</section>
+
+<section class="card">
+  <h2>💊 Dosierungen</h2>
+  <p>Aktuelle Dosierung ändern oder neu anlegen.</p>
+
+  <form id="dosierungForm">
+    <label for="dosierungProdukt">Produkt</label>
+    <select id="dosierungProdukt">
+      <option>Oceamo Duo</option>
+      <option>Oceamo Regulator A</option>
+      <option>Oceamo Regulator O</option>
+      <option>Phosphat+</option>
+      <option>Jod</option>
+      <option>Sonstiges</option>
+    </select>
+
+    <label for="dosierungMenge">Neue Dosiermenge</label>
+    <input id="dosierungMenge"
+           type="number"
+           min="0"
+           step="any"
+           required>
+
+    <label for="dosierungEinheit">Einheit</label>
+    <select id="dosierungEinheit">
+      <option>ml/Tag</option>
+      <option>ml/Woche</option>
+      <option>Tropfen/Tag</option>
+      <option>Tropfen/Woche</option>
+    </select>
+
+    <label for="dosierungDatum">Datum</label>
+    <input id="dosierungDatum"
+           type="date" required>
+
+    <label for="dosierungNotiz">Notiz</label>
+    <input id="dosierungNotiz"
+           type="text"
+           placeholder="z. B. KH-Verbrauch gestiegen">
+
+    <button type="submit">
+      Dosierung speichern
+    </button>
+  </form>
+
+  <h3>Aktuelle Dosierungen</h3>
+  <div id="aktuelleDosierungen"></div>
+</section>
+
+<section class="card">
+  <h2>🔧 Wartungsintervalle</h2>
+  <p>
+    Lege fest, wann deine nächste Wartung fällig ist
+    und ob du daran erinnert werden möchtest.
+  </p>
+  
+  <div id="wartungsplan"></div>
+</section>
+
+<section class="card">
+  <h2>💾 Datensicherung</h2>
+
+  <p>
+    Sichere alle deine Aquarium-Daten als
+    Backup-Datei auf deinem Computer.
+  </p>
+
+  <button type="button" id="backupExport">
+    Backup herunterladen
+  </button>
+
+  <label for="backupImport">
+    Backup wiederherstellen
+  </label>
+
+  <input
+    type="file"
+    id="backupImport"
+    accept=".json,application/json"
+  >
+
+  <p id="backupStatus" aria-live="polite"></p>
+</section>
+
+</main>
+
+</body>
+</html>

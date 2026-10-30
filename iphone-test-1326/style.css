@@ -1,0 +1,285 @@
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #081923;
+  color: #f1f7f9;
+  font-family: Arial, sans-serif;
+}
+
+header {
+  padding: 25px 20px;
+  background: #0d2632;
+}
+
+h1 {
+  color: #5dd6dc;
+  margin: 0 0 8px;
+}
+
+header p {
+  color: #9bb9c3;
+  margin: 0;
+}
+
+main {
+  max-width: 850px;
+  margin: auto;
+  padding: 20px;
+}
+
+.card {
+  background: #12303c;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 18px;
+}
+
+h2 {
+  margin-top: 0;
+}
+
+label {
+  display: block;
+  margin: 15px 0 6px;
+  color: #b2cbd2;
+}
+
+input, select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #315663;
+  border-radius: 9px;
+  background: #081923;
+  color: white;
+  font-size: 16px;
+}
+
+button {
+  width: 100%;
+  padding: 14px;
+  margin-top: 18px;
+  border: none;
+  border-radius: 10px;
+  background: #5dd6dc;
+  color: #08202a;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.werte {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.wert {
+  background: #19404d;
+  padding: 15px;
+  border-radius: 12px;
+}
+
+.wert small {
+  color: #a0bdc5;
+}
+
+.wert strong {
+  display: block;
+  font-size: 22px;
+  margin-top: 8px;
+}
+
+.eintrag {
+  border-left: 3px solid #5dd6dc;
+  padding: 8px 14px;
+  margin-bottom: 14px;
+  background: #19404d;
+  border-radius: 0 10px 10px 0;
+}
+
+.eintrag small {
+  color: #a0bdc5;
+}
+
+@media (max-width: 400px) {
+  .werte {
+    grid-template-columns: 1fr;
+  }
+}
+
+.diagramm {
+  margin-top: 20px;
+  min-height: 230px;
+  overflow: hidden;
+}
+
+.diagramm svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.diagramm text {
+  fill: #a0bdc5;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+}
+
+.diagramm .linie {
+  fill: none;
+  stroke: #5dd6dc;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.diagramm .punkt {
+  fill: #5dd6dc;
+  stroke: #12303c;
+  stroke-width: 2;
+}
+
+.diagramm .gitter {
+  stroke: #315663;
+  stroke-width: 1;
+  stroke-dasharray: 4 5;
+}
+
+.diagramm .hinweis {
+  color: #a0bdc5;
+  text-align: center;
+  padding: 45px 10px;
+}
+
+.wartungsplan-eintrag {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  margin: 12px 0;
+  border: 1px solid #344451;
+  border-radius: 12px;
+}
+
+.wartungsplan-eintrag label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wartungsplan-eintrag input[type="checkbox"] {
+  width: auto;
+}
+
+.wartungsplan-eintrag p {
+  margin: 4px 0;
+}
+/* Grün: Alles in Ordnung */
+.erinnerung-gruen {
+  background-color: #e2f7e8;
+  border-left-color: #28a745 !important;
+  color: #155724;
+}
+
+/* Gelb: Wartung bald fällig */
+.erinnerung-gelb {
+  background-color: #fff3cd;
+  border-left-color: #ffc107 !important;
+  color: #856404;
+}
+
+/* Rot: Wartung überfällig oder heute fällig */
+.erinnerung-rot {
+  background-color: #f8d7da;
+  border-left-color: #dc3545 !important;
+  color: #721c24;
+}
+
+/* Wartungskarten im Dashboard */
+
+.wartungskarte {
+  background: #1e293b;
+  border-radius: 12px;
+  padding: 15px;
+  margin-bottom: 10px;
+  border-left: 5px solid #64748b;
+  color: white;
+}
+
+/* Überschrift der Wartungskarte */
+.wartungskarte h3 {
+  margin: 0 0 10px 0;
+  font-size: 17px;
+}
+
+/* Textzeilen der Wartungskarte */
+.wartungskarte p {
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+/* Farben für Wartungskarten */
+
+.wartungskarte.rot {
+  border-left-color: #ef4444;
+}
+
+.wartungskarte.gelb {
+  border-left-color: #facc15;
+}
+
+.wartungskarte.gruen {
+  border-left-color: #22c55e;
+}
+
+/* Timeline-Buttons */
+.timeline-button {
+  display: block;
+  margin: 15px auto;
+  padding: 12px 20px;
+
+  background-color: #087e9b;
+  color: white;
+
+  border: none;
+  border-radius: 10px;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+/* Versteckte Timeline-Buttons ausblenden */
+.timeline-button[hidden] {
+  display: none;
+}
+/* Timeline-Button beim Darüberfahren */
+.timeline-button:hover {
+  background-color: #0a9cbd;
+}
+
+/* 🟢 Wasserwert im Zielbereich */
+.wert.status-gruen {
+  border-left: 5px solid #22c55e;
+}
+
+/* 🟡 Wasserwert leicht außerhalb */
+.wert.status-gelb {
+  border-left: 5px solid #eab308;
+}
+
+/* 🔴 Wasserwert deutlich außerhalb */
+.wert.status-rot {
+  border-left: 5px solid #ef4444;
+}
+
+/* 🔒 Deaktivierte Buttons deutlich kennzeichnen */
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
