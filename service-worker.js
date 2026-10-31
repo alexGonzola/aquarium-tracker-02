@@ -1,10 +1,12 @@
-const CACHE_NAME = "aquarium-tracker-v2-dev-3";
+const CACHE_NAME = "aquarium-tracker-02-shell-0.2-rc1";
 
 const DATEIEN = [
   "./",
   "./index.html",
   "./style.css",
+  "./supabase-sdk-2.118.0.js",
   "./app.js",
+  "./schreibschutz.js",
   "./wartung.js",
   "./supabase.js",
   "./manifest.json",
@@ -27,23 +29,31 @@ self.addEventListener("activate", event => {
     caches.keys().then(namen => {
       return Promise.all(
         namen
-          .filter(name => name !== CACHE_NAME)
+          .filter(name => name.startsWith("aquarium-tracker-02-shell-") && name !== CACHE_NAME)
           .map(name => caches.delete(name))
       );
     })
   );
 });
 
-// Dateien zuerst aus dem Netzwerk laden
-// Bei fehlender Verbindung den Cache verwenden
+// Die gemeinsam installierten App-Dateien als eine Version verwenden.
+// Sonst könnten neue HTML-Dateien mit alten Schutzfunktionen gemischt werden.
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
 
   if (new URL(event.request.url).origin !== self.location.origin) return;
 
-  event.respondWith(
-    fetch(event.request).catch(() => {
-      return caches.match(event.request);
-    })
-  );
+  const appDateien = DATEIEN.map(pfad => new URL(pfad, self.registration.scope).href);
+  const anfrageUrl = new URL(event.request.url);
+  anfrageUrl.search = "";
+  if (!appDateien.includes(anfrageUrl.href)) return;
+
+  event.respondWith(caches.open(CACHE_NAME).then(async cache => {
+    const gespeichert = await cache.match(anfrageUrl.href);
+    // Fehlende Teile der App nicht unbemerkt aus einer anderen Version ergänzen.
+    return gespeichert || new Response(
+      "Die App-Version ist unvollständig. Bitte die Seite nach einem Update erneut öffnen.",
+      { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } }
+    );
+  }));
 });

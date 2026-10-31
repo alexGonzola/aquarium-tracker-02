@@ -42,6 +42,7 @@ function leseSyncStand() {
 
 // Letzten bekannten Cloud-Synchronisierungsstand speichern
 function speichereSyncStand(zeitstempel) {
+  if (window.aquariumSchreibschutz?.darfSchreiben(true) !== true) return false;
   if (typeof zeitstempel !== "string" || !Number.isFinite(Date.parse(zeitstempel))) {
     console.error("Ungültiger Synchronisierungszeitstempel.");
     return false;
@@ -239,6 +240,7 @@ function bestaetigeErfolgreichenUpload(backup, neuerZeitstempel) {
 }
 
 function speichereBestaetigtenSyncStand(backup, zeitstempel) {
+  if (window.aquariumSchreibschutz?.darfSchreiben(true) !== true) return false;
 
   // Nur gültige Daten akzeptieren
   if (
@@ -352,125 +354,38 @@ try {
   }
 }
 
-// 🔒 Ursprüngliche Aquarium-Daten wiederherstellen
-function stelleLokaleDatenNachCloudFehlerWiederHer() {
-
-  const backupText = localStorage.getItem(
-    "aquarium-cloud-download-sicherheitsbackup-v1"
-  );
-
-  if (!backupText) {
-    console.error("🔴 Kein Sicherheitsbackup vorhanden.");
-    return false;
-  }
-
+// Sicherheitsbackups erhalten, ohne den nächsten sicheren Download zu blockieren.
+function archiviereCloudDownloadSicherheitsbackup(erwarteterText) {
+  const aktiverKey = "aquarium-cloud-download-sicherheitsbackup-v1";
   try {
-    const backup = JSON.parse(backupText);
-
-    const schluessel = [
-      "aquarium-tracker-messwerte-v1",
-      "aquarium-tracker-ereignisse-v1",
-      "aquarium-dosierungen-v1",
-      "aquarium-wartungsplan-v1",
-      "aquariumKhEinstellungen",
-      "aquariumCaEinstellungen",
-      "aquariumMgEinstellungen",
-      "aquariumNo3Einstellungen",
-      "aquariumPo4Einstellungen",
-      "aquariumSalEinstellungen",
-      "aquariumTempEinstellungen"
-    ];
-
-    // Prüfen, ob alle gesicherten Speicherplätze vorhanden sind
-    if (
-      !backup ||
-      typeof backup !== "object" ||
-      Array.isArray(backup) ||
-      !schluessel.every(key =>
-        Object.prototype.hasOwnProperty.call(backup, key) &&
-        (backup[key] === null || typeof backup[key] === "string")
-      )
-    ) {
-      throw new Error("Sicherheitsbackup ist unvollständig.");
+    if (window.aquariumSchreibschutz?.darfSchreiben(true) !== true) return false;
+    if (typeof erwarteterText !== "string" || localStorage.getItem(aktiverKey) !== erwarteterText) {
+      return false;
     }
-
-       // 🔒 Aktuellen Zustand vor der Rücksicherung sichern
-    const zustandVorRuecksicherung = {};
-
-    schluessel.forEach(key => {
-      zustandVorRuecksicherung[key] =
-        localStorage.getItem(key);
-    });
-
-    // Ursprüngliche Speicherinhalte zurückschreiben
-    try {
-
-      schluessel.forEach(key => {
-        if (backup[key] === null) {
-          localStorage.removeItem(key);
-        } else {
-          localStorage.setItem(key, backup[key]);
-        }
-      });
-
-    } catch (schreibFehler) {
-
-      console.error(
-        "🔴 Fehler während der Rücksicherung:",
-        schreibFehler
-      );
-
-      // Versuchen, den vorherigen Zustand wiederherzustellen
-      schluessel.forEach(key => {
-        try {
-          if (zustandVorRuecksicherung[key] === null) {
-            localStorage.removeItem(key);
-          } else {
-            localStorage.setItem(
-              key,
-              zustandVorRuecksicherung[key]
-            );
-          }
-        } catch (rollbackFehler) {
-          console.error(
-            "🔴 Rücknahme fehlgeschlagen:",
-            key,
-            rollbackFehler
-          );
-        }
-      });
-
-      throw schreibFehler;
+    const backup = JSON.parse(erwarteterText);
+    if (!backup || typeof backup !== "object" || Array.isArray(backup) ||
+        Object.keys(backup).length !== 11 ||
+        !Object.values(backup).every(wert => wert === null || typeof wert === "string")) {
+      return false;
     }
-
-        // 🔒 Kontrollieren, ob alle ursprünglichen Daten wieder stimmen
-    const allesWiederhergestellt = schluessel.every(key =>
-      localStorage.getItem(key) === backup[key]
-    );
-
-    if (!allesWiederhergestellt) {
-      throw new Error(
-        "Rücksicherung konnte nicht vollständig bestätigt werden."
-      );
-    }
-    
-    console.log(
-      "✅ Ursprüngliche Aquarium-Daten wiederhergestellt."
-    );
-
-    return true;
-
+    const archivKey = "aquarium-cloud-download-sicherheitsbackup-archiv-v1:" + crypto.randomUUID();
+    // Auch bei einer unerwarteten Namenskollision kein vorhandenes Backup ersetzen.
+    if (localStorage.getItem(archivKey) !== null) return false;
+    localStorage.setItem(archivKey, erwarteterText);
+    if (localStorage.getItem(archivKey) !== erwarteterText) return false;
+    if (window.aquariumSchreibschutz.darfSchreiben(true) !== true ||
+        localStorage.getItem(aktiverKey) !== erwarteterText) return false;
+    localStorage.removeItem(aktiverKey);
+    return localStorage.getItem(aktiverKey) === null &&
+      localStorage.getItem(archivKey) === erwarteterText;
   } catch (fehler) {
-    console.error(
-      "🔴 Rücksicherung der Aquarium-Daten fehlgeschlagen:",
-      fehler
-    );
-
+    console.error("Sicherheitsbackup konnte nicht vollständig archiviert werden.", fehler);
     return false;
   }
 }
 
 function schliesseErfolgreichenUploadAb(backup, neuerZeitstempel) {
+  if (window.aquariumSchreibschutz?.darfSchreiben() !== true) return false;
 
   // Genau das hochgeladene Backup als
   // letzten synchronisierten Stand speichern
@@ -511,6 +426,7 @@ async function starteGeschuetztenUpload(
   zeitstempel,
   internerAutomatischerAufruf = false
 ) {
+  if (await window.aquariumSchreibschutz?.bereit !== true || window.aquariumSchreibschutz.darfSchreiben() !== true) return false;
 
   // 🔒 Upload nur mit gültigem Synchronisierungsstand
 if (!hatBestaetigtenSyncStand()) {
@@ -593,6 +509,7 @@ if (!hatBestaetigtenSyncStand()) {
 }
 
 async function fuehreGeschuetztenUploadAus(backup, zeitstempel) {
+  if (window.aquariumSchreibschutz?.darfSchreiben() !== true) return null;
 
   // Backup und Zeitstempel prüfen
   if (
@@ -628,6 +545,8 @@ async function fuehreGeschuetztenUploadAus(backup, zeitstempel) {
     return null;
   }
   
+  if (window.aquariumSchreibschutz?.darfSchreiben() !== true) return null;
+
   // Geschützten Upload bei Supabase ausführen
   const { data, error } = await supabaseClient.rpc(
     "aquarium_sicher_speichern",
@@ -636,6 +555,8 @@ async function fuehreGeschuetztenUploadAus(backup, zeitstempel) {
       p_erwarteter_zeitstempel: zeitstempel
     }
   );
+
+  if (window.aquariumSchreibschutz?.darfSchreiben() !== true) return null;
 
   // Fehler oder Synchronisierungskonflikt erkennen
   if (error) {
@@ -685,6 +606,7 @@ function leseSyncBackup() {
 
 // Letztes erfolgreich synchronisiertes Backup speichern
 function speichereSyncBackup(backup) {
+  if (window.aquariumSchreibschutz?.darfSchreiben(true) !== true) return false;
   if (!backup || typeof backup !== "object") {
     console.error("Ungültiges Synchronisierungsbackup.");
     return false;
@@ -926,6 +848,20 @@ function ermittleSyncStatus(cloudZeitstempel) {
 
   // Beide Seiten sind unverändert
   return "aktuell";
+}
+
+// 🔒 Ausdrückliche Bestätigung bei einem Synchronisierungskonflikt
+function bestaetigeCloudUebernahmeBeiKonflikt() {
+
+  return window.confirm(
+    "⚠️ Synchronisierungskonflikt erkannt!\n\n" +
+    "Die lokalen Aquarium-Daten unterscheiden sich von den Cloud-Daten.\n\n" +
+    "Möchtest du die Cloud-Daten übernehmen und die lokalen Daten ersetzen?\n\n" +
+    "Vor der Übernahme muss ein überprüftes Sicherheitsbackup erstellt werden.\n\n" +
+    "OK = Cloud übernehmen\n" +
+    "Abbrechen = Keine Daten verändern"
+  );
+
 }
 
 function ermittleSyncAktion(cloudZeitstempel) {
@@ -1224,6 +1160,7 @@ function erstelleErstverbindungsBackup() {
 
 // 🔒 Sicherheitsbackup der Erstverbindung speichern und prüfen
 function speichereErstverbindungsBackup(backup) {
+  if (window.aquariumSchreibschutz?.darfSchreiben(true) !== true) return false;
 
   try {
 
@@ -1511,6 +1448,7 @@ if (
 }
 
 async function speichereAutomatischInCloud() {
+  if (await window.aquariumSchreibschutz?.bereit !== true || window.aquariumSchreibschutz.darfSchreiben() !== true) return false;
 
     // 🔒 Keine Uploads bei ungeklärtem Datenzustand
   if (cloudDatenzustandUnsicher) {
@@ -1756,6 +1694,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const cloudSpeicherStatus = document.getElementById("cloudSpeicherStatus");
 
   cloudSpeichern.addEventListener("click", async function () {
+  if (await window.aquariumSchreibschutz?.bereit !== true || window.aquariumSchreibschutz.darfSchreiben() !== true) return false;
 
     // 🔒 Manuellen Upload bei laufenden Cloud-Vorgängen verhindern
 if (
@@ -1963,6 +1902,7 @@ async function starteCloudDownload(
   erstverbindung = false,
   automatischerDownload = false
 ) {
+  if (await window.aquariumSchreibschutz?.bereit !== true || window.aquariumSchreibschutz.darfSchreiben() !== true) return false;
 
     // 🔒 Erstverbindung bleibt bis zur Fertigstellung gesperrt
   if (erstverbindung === true) {
@@ -2052,6 +1992,23 @@ if (cloudDatenzustandUnsicher) {
       let cloudWiederherstellungGestartet = false;
 
       let cloudNeuladenAusstehend = false;
+      let downloadSicherungsText = null;
+
+// 🔒 Auch im äußeren Fehlerzweig verfügbar halten
+const sicherungsSchluessel = [
+  "aquarium-tracker-messwerte-v1",
+  "aquarium-tracker-ereignisse-v1",
+  "aquarium-dosierungen-v1",
+  "aquarium-wartungsplan-v1",
+  "aquariumKhEinstellungen",
+  "aquariumCaEinstellungen",
+  "aquariumMgEinstellungen",
+  "aquariumNo3Einstellungen",
+  "aquariumPo4Einstellungen",
+  "aquariumSalEinstellungen",
+  "aquariumTempEinstellungen"
+];
+let gespeicherteOriginaldaten = null;
 
 try {
 
@@ -2090,6 +2047,8 @@ if (!cloudDaten) {
 cloudLadenStatus.textContent =
   "✅ Aquarium-Daten in der Cloud gefunden!";
 
+ let konfliktUebernahmeBestaetigt = false;
+ 
   // 🔒 Sicherheitsprüfung vor dem Cloud-Download
 const syncStatus = ermittleSyncStatus(
   cloudDaten.updated_at
@@ -2100,7 +2059,25 @@ console.log(
   syncStatus
 );
 
-if (syncStatus !== "cloud" && syncStatus !== "aktuell") {
+// 🔒 Bei Konflikten nur manuelle Übernahme erlauben
+if (syncStatus === "konflikt" && automatischerDownload === false) {
+
+  konfliktUebernahmeBestaetigt =
+    bestaetigeCloudUebernahmeBeiKonflikt();
+
+  if (!konfliktUebernahmeBestaetigt) {
+    cloudLadenStatus.textContent =
+      "☁️ Cloud-Übernahme abgebrochen. Lokale Daten bleiben unverändert.";
+
+    return;
+  }
+}
+
+if (
+  syncStatus !== "cloud" &&
+  syncStatus !== "aktuell" &&
+  !(syncStatus === "konflikt" && konfliktUebernahmeBestaetigt === true)
+) {
 
   cloudLadenStatus.textContent =
     "🛑 Cloud-Download gestoppt. Synchronisierungsstatus: " +
@@ -2137,9 +2114,15 @@ console.log("Cloud-Backup gefunden:", {
   );
 
   if (
-    aktuellerStatus !== "cloud" &&
-    aktuellerStatus !== "aktuell"
-  ) {
+  aktuellerStatus !== "cloud" &&
+  aktuellerStatus !== "aktuell" &&
+  !(
+    aktuellerStatus === "konflikt" &&
+    konfliktUebernahmeBestaetigt === true &&
+    automatischerDownload === false
+  )
+) {
+
     cloudLadenStatus.textContent =
       "🛑 Cloud-Wiederherstellung gestoppt. Status: " +
       aktuellerStatus;
@@ -2189,9 +2172,15 @@ if (
 }
 
   if (
-    statusNachPruefung !== "cloud" &&
-    statusNachPruefung !== "aktuell"
-  ) {
+  statusNachPruefung !== "cloud" &&
+  statusNachPruefung !== "aktuell" &&
+  !(
+    statusNachPruefung === "konflikt" &&
+    konfliktUebernahmeBestaetigt === true &&
+    automatischerDownload === false
+  )
+) {
+
     cloudLadenStatus.textContent =
       "🛑 Cloud-Wiederherstellung gestoppt. Status: " +
       statusNachPruefung;
@@ -2199,20 +2188,24 @@ if (
     return;
   }
 
+// 🔒 Vorhandenes Sicherheitsbackup vor Überschreiben schützen
+if (window.aquariumSchreibschutz?.darfSchreiben() !== true) return;
+if (
+  localStorage.getItem(
+    "aquarium-cloud-download-sicherheitsbackup-v1"
+  ) !== null
+) {
+  cloudLadenStatus.textContent =
+    "🛑 Cloud-Download gestoppt: Ein früheres Sicherheitsbackup ist bereits vorhanden.";
+
+  console.warn(
+    "🔒 Vorhandenes Sicherheitsbackup wird nicht überschrieben."
+  );
+
+  return;
+}
+
  // 🔒 Originale lokale Daten vor dem Cloud-Download sichern
-const sicherungsSchluessel = [
-  "aquarium-tracker-messwerte-v1",
-  "aquarium-tracker-ereignisse-v1",
-  "aquarium-dosierungen-v1",
-  "aquarium-wartungsplan-v1",
-  "aquariumKhEinstellungen",
-  "aquariumCaEinstellungen",
-  "aquariumMgEinstellungen",
-  "aquariumNo3Einstellungen",
-  "aquariumPo4Einstellungen",
-  "aquariumSalEinstellungen",
-  "aquariumTempEinstellungen"
-];
 
 try {
 
@@ -2224,9 +2217,10 @@ try {
       localStorage.getItem(key);
   });
 
+  downloadSicherungsText = JSON.stringify(lokalesBackupVorDownload);
   localStorage.setItem(
     "aquarium-cloud-download-sicherheitsbackup-v1",
-    JSON.stringify(lokalesBackupVorDownload)
+    downloadSicherungsText
   );
 
 // 🔒 Gespeichertes Sicherheitsbackup kontrollieren
@@ -2262,8 +2256,6 @@ if (
 
 // 🔒 Prüfen, ob lokale Daten seit dem Sicherheitsbackup verändert wurden
 // 🔒 Sicherheitsbackup kontrolliert einlesen
-let gespeicherteOriginaldaten;
-
 try {
   const backupText = localStorage.getItem(
     "aquarium-cloud-download-sicherheitsbackup-v1"
@@ -2319,7 +2311,13 @@ if (!lokaleDatenUnveraendert) {
 }
 
 // 🔒 Letzte Kontrolle vor dem Überschreiben lokaler Daten
-if (lokaleDatenWurdenGeaendert()) {
+if (
+  lokaleDatenWurdenGeaendert() &&
+  !(
+    konfliktUebernahmeBestaetigt === true &&
+    automatischerDownload === false
+  )
+) {
 
   console.warn(
     "🔒 Cloud-Download gestoppt: Lokale Daten wurden verändert."
@@ -2349,16 +2347,18 @@ if (
 
 // 🔒 Automatische Wiederherstellung nur über den
 // dafür vorgesehenen Aufrufweg durchführen
-if (
-  automatischerDownload === true &&
-  typeof window.stelleCloudBackupAutomatischWiederHer !== "function"
-) {
+const stelleCloudDatenWiederHer = automatischerDownload === true
+  ? window.stelleCloudBackupAutomatischWiederHer
+  : window.stelleCloudBackupMitBestaetigungWiederHer;
+
+if (typeof stelleCloudDatenWiederHer !== "function") {
   throw new Error(
-    "Automatische Cloud-Wiederherstellung nicht verfügbar."
+    "Geschützte Cloud-Wiederherstellung nicht verfügbar."
   );
 }
 
 // 🔒 Wiederherstellung dauerhaft als begonnen markieren
+if (window.aquariumSchreibschutz?.darfSchreiben() !== true) return;
 localStorage.setItem(
   CLOUD_WIEDERHERSTELLUNG_MARKER_KEY,
   "true"
@@ -2373,17 +2373,19 @@ if (
   );
 }
 
+// 🔒 Zustand unmittelbar vor dem Wiederherstellungsversuch merken
+// Der tatsächliche Schreibzustand wird in der gemeinsamen Wiederherstellung geprüft.
+
 // 🔒 Kennzeichnen, dass die Wiederherstellung beginnt
 cloudWiederherstellungGestartet = true;
 
-const ergebnis = automatischerDownload === true
-  ? window.stelleCloudBackupAutomatischWiederHer(cloudJetzt.daten)
-  : window.stelleAquariumBackupWiederHer(cloudJetzt.daten);
+const ergebnis = stelleCloudDatenWiederHer(cloudJetzt.daten);
 
  if (ergebnis === false) {
 
-  // 🔒 Benutzer hat die Wiederherstellung abgebrochen.
-  // Es wurden noch keine Aquarium-Daten überschrieben.
+  // 🔒 Abbruch durch Benutzer oder Sicherheitsprüfung vor dem Schreiben.
+  // Auch bei einem folgenden Fehler darf keine Rücksicherung starten.
+  cloudWiederherstellungGestartet = false;
 
   localStorage.removeItem(
     CLOUD_WIEDERHERSTELLUNG_MARKER_KEY
@@ -2400,11 +2402,9 @@ const ergebnis = automatischerDownload === true
     );
   }
 
-  cloudWiederherstellungGestartet = false;
-
   cloudLadenStatus.textContent =
-    "ℹ️ Cloud-Wiederherstellung vom Benutzer abgebrochen. " +
-    "Lokale Aquarium-Daten bleiben unverändert.";
+  "🔒 Cloud-Wiederherstellung abgebrochen. " +
+  "Lokale Aquarium-Daten wurden nicht überschrieben.";
 
   console.log(
     "ℹ️ Cloud-Wiederherstellung ohne Datenänderung abgebrochen."
@@ -2430,72 +2430,16 @@ if (!pruefeWiederhergestellteLokaleDaten(cloudJetzt.daten)) {
 
  if (syncGespeichert !== true) {
 
-  // 🔒 Ursprüngliche Aquarium-Daten zurückholen
-  const ruecksicherungErfolgreich =
-    stelleLokaleDatenNachCloudFehlerWiederHer();
-
-  if (ruecksicherungErfolgreich === true) {
-
-    // 🔒 Cloud-Synchronisierung bis zur Klärung sperren
-    cloudDatenzustandUnsicher = true;
-
-    // 🔒 Sicherheitssperre auch nach einem Neustart behalten
-try {
-  localStorage.setItem(CLOUD_DATENZUSTAND_KEY, "true");
-} catch (speicherFehler) {
-  console.error(
-    "🔴 Dauerhafte Cloud-Sicherheitssperre konnte nicht gespeichert werden:",
-    speicherFehler
+  // 🔒 Der äußere Fehlerzweig bewahrt Aquarium-Daten und sperrt die Synchronisierung.
+  throw new Error(
+    "Synchronisierungsstand konnte nach der Cloud-Wiederherstellung nicht gespeichert werden."
   );
-}
-
-    cloudLadenStatus.textContent =
-      "🛑 Cloud-Download fehlgeschlagen. Ursprüngliche Aquarium-Daten wurden zurückgesichert.";
-
-    console.warn(
-      "🔒 Cloud-Download abgebrochen. Lokale Daten zurückgesichert."
-    );
-
-    // 🔄 Seite neu laden, damit die ursprünglichen Daten
-// auch im Arbeitsspeicher wieder aktuell sind
-
-cloudNeuladenAusstehend = true;
-
-
-  } else {
-
-    // 🔒 Automatische Uploads bei fehlgeschlagener Rücksicherung sperren
-    cloudDatenzustandUnsicher = true;
-
-    // 🔒 Sicherheitssperre auch nach Browser-Neustart behalten
-try {
-  localStorage.setItem(CLOUD_DATENZUSTAND_KEY, "true");
-} catch (fehler) {
-  console.error(
-    "🔴 Dauerhafte Sicherheitssperre konnte nicht gespeichert werden:",
-    fehler
-  );
-}
-
-    cloudLadenStatus.textContent =
-      "🔴 Cloud-Download fehlgeschlagen! Rücksicherung nicht erfolgreich. Sicherheitsbackup bitte aufbewahren.";
-
-    console.error(
-      "🔴 ACHTUNG: Automatische Rücksicherung fehlgeschlagen!"
-    );
-  }
-
-  // 🔄 Nur nach erfolgreicher Rücksicherung neu laden
-if (ruecksicherungErfolgreich === true) {
-  setTimeout(() => {
-    window.location.reload();
-  }, 1500);
-}
-
-  return;
 }
 
 // 🔒 Wiederherstellung erfolgreich abgeschlossen
+if (!archiviereCloudDownloadSicherheitsbackup(downloadSicherungsText)) {
+  throw new Error("Sicherheitsbackup konnte nach der Übernahme nicht sicher archiviert werden.");
+}
 // Unterbrechungskennzeichnung entfernen
 localStorage.removeItem(
   CLOUD_WIEDERHERSTELLUNG_MARKER_KEY
@@ -2535,28 +2479,28 @@ throw new Error(
 
   if (cloudWiederherstellungGestartet === true) {
 
-        // 🔒 Bei unerwarteten Fehlern ursprüngliche Daten zurückholen
-    const ruecksicherungErfolgreich =
-      stelleLokaleDatenNachCloudFehlerWiederHer();
+    // 🔒 Nur vergleichen, keine Aquarium-Daten zurückschreiben
+let lokaleDatenSindNochOriginal = false;
 
-if (ruecksicherungErfolgreich === true) {
-  console.log(
-    "✅ Ursprüngliche Aquarium-Daten nach Cloud-Fehler zurückgesichert."
-  );
-
-  // 🔒 Nach erfolgreicher Rücksicherung ist ein Neuladen erforderlich
-  cloudNeuladenAusstehend = true;
-
-
-} else {
+try {
+  lokaleDatenSindNochOriginal =
+    gespeicherteOriginaldaten !== null &&
+    sicherungsSchluessel.every(
+      key =>
+        localStorage.getItem(key) ===
+        gespeicherteOriginaldaten[key]
+    );
+} catch (pruefFehler) {
   console.error(
-    "🔴 Rücksicherung nach Cloud-Fehler fehlgeschlagen."
+    "🔴 Lokaler Datenvergleich fehlgeschlagen:",
+    pruefFehler
   );
 }
 
-// 🔒 Ergebnis für die spätere Fehlermeldung merken
-const ruecksicherungFehlgeschlagen =
-  ruecksicherungErfolgreich !== true;
+console.log(
+  "🔍 Lokale Daten entsprechen noch dem Sicherheitsbackup:",
+  lokaleDatenSindNochOriginal
+);
 
       // 🔒 Uploads bei ungeklärtem Datenzustand sperren
   cloudDatenzustandUnsicher = true;
@@ -2570,26 +2514,21 @@ const ruecksicherungFehlgeschlagen =
     );
   }
 
-  // 🔄 Erst nach der Sicherheitsbehandlung neu laden
-if (ruecksicherungErfolgreich === true) {
-  setTimeout(() => {
-    window.location.reload();
-  }, 1500);
-}
-  
-  // 🔒 Fehlermeldung anhand der tatsächlichen Rücksicherung
-if (ruecksicherungFehlgeschlagen) {
+  // 🔒 Unbekannte Änderungen bewahren und manuell prüfen lassen
+if (!lokaleDatenSindNochOriginal) {
 
   cloudLadenStatus.textContent =
-    "🔴 KRITISCHER FEHLER! Ursprüngliche Aquarium-Daten " +
-    "konnten nicht vollständig wiederhergestellt werden. " +
-    "Bitte keine weiteren Änderungen vornehmen.";
+    "🛑 Cloud-Download fehlgeschlagen. Lokale Daten weichen vom " +
+    "Sicherheitsbackup ab oder konnten nicht geprüft werden. " +
+    "Keine automatische Rücksicherung durchgeführt. Sicherheitsbackup bleibt erhalten. " +
+    "Cloud-Synchronisierung gesperrt. Bitte Datenzustand prüfen.";
 
 } else {
 
   cloudLadenStatus.textContent =
     "🛑 Cloud-Download fehlgeschlagen. " +
-    "Ursprüngliche Aquarium-Daten wurden zurückgesichert. " +
+    "Lokale Aquarium-Daten entsprechen bereits dem Sicherheitsbackup; " +
+    "keine Rücksicherung erforderlich. " +
     "Cloud-Synchronisierung bleibt vorsorglich gesperrt.";
 
 }
@@ -2626,6 +2565,14 @@ if (
 
 } finally {
 
+  // Vor dem Schreiben abgebrochene Versuche brauchen keine aktive Rücksicherung.
+  // Bei Fehlern niemals Backup-Einträge ungeprüft entfernen.
+  if (!cloudWiederherstellungGestartet && downloadSicherungsText !== null) {
+    if (!archiviereCloudDownloadSicherheitsbackup(downloadSicherungsText)) {
+      cloudLadenStatus.textContent += " Sicherheitsbackup bitte behalten und Archivierung prüfen.";
+    }
+  }
+
   // 🔒 Sperre bis zum Neuladen aktiv halten
   if (!cloudNeuladenAusstehend) {
     cloudWiederherstellungLaeuft = false;
@@ -2656,6 +2603,7 @@ document.addEventListener(
 
 // 🔒 Erstverbindung prüfen – noch keine Datenübertragung
 cloudErstverbindung.addEventListener("click", async function () {
+  if (await window.aquariumSchreibschutz?.bereit !== true || window.aquariumSchreibschutz.darfSchreiben() !== true) return false;
 
   // 🔒 Keine Erstverbindung bei unsicherem Datenzustand
 if (cloudDatenzustandUnsicher) {
@@ -2694,8 +2642,7 @@ let erstverbindungErfolgreich = false;
 // 🔒 Merken, ob lokale Daten bereits übernommen wurden
 let erstverbindungDatenUebernommen = false;
 
-// 🔒 Rücksicherungsfunktion auch im äußeren catch verfügbar machen
-let sichereLokaleDatenZurueck = null;
+
 
   try {
 
@@ -2837,41 +2784,6 @@ console.log(
   "✅ Cloud-Backup für die sichere Übernahme vorbereitet."
 );
 
-// 🔒 Speicherplätze für eine mögliche Rücksicherung
-const erstverbindungSpeicherSchluessel = [
-  "aquarium-tracker-messwerte-v1",
-  "aquarium-tracker-ereignisse-v1",
-  "aquarium-dosierungen-v1",
-  "aquarium-wartungsplan-v1",
-  "aquariumKhEinstellungen",
-  "aquariumCaEinstellungen",
-  "aquariumMgEinstellungen",
-  "aquariumNo3Einstellungen",
-  "aquariumPo4Einstellungen",
-  "aquariumSalEinstellungen",
-  "aquariumTempEinstellungen"
-];
-
-// 🔒 Ursprünglichen Synchronisierungsstand für Rücksicherung merken
-const syncStandVorErstverbindung = {
-  backup: localStorage.getItem(SYNC_BACKUP_KEY),
-  zeitstempel: localStorage.getItem(SYNC_STAND_KEY)
-};
-
-// 🔒 Ursprüngliche lokale Speicherinhalte sichern
-const lokaleDatenVorErstverbindung = {};
-
-erstverbindungSpeicherSchluessel.forEach(key => {
-
-  lokaleDatenVorErstverbindung[key] =
-    localStorage.getItem(key);
-
-});
-
-console.log(
-  "✅ Ursprüngliche lokale Speicherinhalte für Rücksicherung erfasst."
-);
-
 // 🔒 Sicherheitsbackup vor der Übernahme erneut prüfen
 const letzteBackupPruefung =
   pruefeGespeichertesErstverbindungsBackup();
@@ -2891,104 +2803,6 @@ console.log(
   "✅ Sicherheitsbackup vor Datenübernahme erneut geprüft."
 );
 
-
-// 🔒 Ursprüngliche lokale Daten wiederherstellen
-sichereLokaleDatenZurueck = function () {
-
-  try {
-
-    for (const key of erstverbindungSpeicherSchluessel) {
-
-      const alterWert = lokaleDatenVorErstverbindung[key];
-
-      if (alterWert === null) {
-        localStorage.removeItem(key);
-      } else {
-        localStorage.setItem(key, alterWert);
-      }
-
-    }
-
-   // 🔍 Rücksicherung auf Vollständigkeit kontrollieren
-for (const key of erstverbindungSpeicherSchluessel) {
-
-  const erwarteterWert = lokaleDatenVorErstverbindung[key];
-  const aktuellerWert = localStorage.getItem(key);
-
-  if (aktuellerWert !== erwarteterWert) {
-    throw new Error(
-      "Rücksicherung unvollständig bei: " + key
-    );
-  }
-
-}
-   
-// 🔒 Ursprüngliches Sync-Backup wiederherstellen
-if (syncStandVorErstverbindung.backup === null) {
-  localStorage.removeItem(SYNC_BACKUP_KEY);
-} else {
-  localStorage.setItem(
-    SYNC_BACKUP_KEY,
-    syncStandVorErstverbindung.backup
-  );
-}
-
-// 🔒 Ursprünglichen Sync-Zeitstempel wiederherstellen
-if (syncStandVorErstverbindung.zeitstempel === null) {
-  localStorage.removeItem(SYNC_STAND_KEY);
-} else {
-  localStorage.setItem(
-    SYNC_STAND_KEY,
-    syncStandVorErstverbindung.zeitstempel
-  );
-}
-
-// 🔒 Rücksicherung des Synchronisierungsstands überprüfen
-if (
-  localStorage.getItem(SYNC_BACKUP_KEY) !==
-    syncStandVorErstverbindung.backup ||
-  localStorage.getItem(SYNC_STAND_KEY) !==
-    syncStandVorErstverbindung.zeitstempel
-) {
-  throw new Error(
-    "Synchronisierungsstand konnte nicht vollständig zurückgesichert werden."
-  );
-}
-
-    console.log(
-      "✅ Ursprüngliche lokale Daten zurückgesichert."
-    );
-
-    return true;
-
-  } catch (fehler) {
-
-  // 🛑 Automatische Cloud-Vorgänge sperren
-cloudDatenzustandUnsicher = true;
-
-// 🔒 Sicherheitssperre auch nach einem Neustart beibehalten
-try {
-  localStorage.setItem(
-    CLOUD_DATENZUSTAND_KEY,
-    "true"
-  );
-} catch (speicherFehler) {
-  console.error(
-    "🔴 Sicherheitssperre konnte nicht dauerhaft gespeichert werden:",
-    speicherFehler
-  );
-}
-
-  console.error(
-    "🔴 KRITISCH: Rücksicherung fehlgeschlagen:",
-    fehler
-  );
-
-  return false;
-
-}
-
-}
 
 // 🔒 Letzte Prüfung unmittelbar vor der Datenübernahme
 if (
@@ -3010,25 +2824,34 @@ console.log(
 // ☁️ Geprüfte Cloud-Daten lokal wiederherstellen
 
 // 🔒 Ab jetzt könnten lokale Daten verändert werden
+if (window.aquariumSchreibschutz?.darfSchreiben() !== true) return;
 erstverbindungDatenUebernommen = true;
+
+// 🔒 Unterbrechungen auch nach einem Neustart erkennen
+localStorage.setItem(CLOUD_WIEDERHERSTELLUNG_MARKER_KEY, "true");
+if (localStorage.getItem(CLOUD_WIEDERHERSTELLUNG_MARKER_KEY) !== "true") {
+  throw new Error("Sicherheitskennzeichnung der Erstverbindung konnte nicht gespeichert werden.");
+}
 
 const wiederherstellungErfolgreich =
   window.stelleCloudBackupAutomatischWiederHer(
     cloudBackupFuerUebernahme
   );
 
-// 🔒 Bei fehlgeschlagener Wiederherstellung zurücksichern
-if (wiederherstellungErfolgreich !== true) {
-
-  const ruecksicherungErfolgreich =
-    sichereLokaleDatenZurueck();
-
+// 🔒 Ein schützender Abbruch darf keine Rücksicherung auslösen
+if (wiederherstellungErfolgreich === false) {
+  localStorage.removeItem(CLOUD_WIEDERHERSTELLUNG_MARKER_KEY);
+  if (localStorage.getItem(CLOUD_WIEDERHERSTELLUNG_MARKER_KEY) !== null) {
+    throw new Error("Unterbrechungskennzeichnung konnte nach Abbruch nicht entfernt werden.");
+  }
+  erstverbindungDatenUebernommen = false;
   cloudErstverbindungStatus.textContent =
-    ruecksicherungErfolgreich
-      ? "🛑 Cloud-Wiederherstellung fehlgeschlagen. Ursprüngliche Daten zurückgesichert."
-      : "🔴 KRITISCH: Cloud-Wiederherstellung und Rücksicherung fehlgeschlagen.";
-
+    "🔒 Erstverbindung vor dem Schreiben abgebrochen. Keine Rücksicherung durchgeführt.";
   return;
+}
+
+if (wiederherstellungErfolgreich !== true) {
+  throw new Error("Erstverbindung lieferte kein eindeutiges Wiederherstellungsergebnis.");
 }
 
 console.log(
@@ -3042,16 +2865,7 @@ const lokaleDatenKorrekt =
   );
 
 if (lokaleDatenKorrekt !== true) {
-
-  const ruecksicherungErfolgreich =
-    sichereLokaleDatenZurueck();
-
-  cloudErstverbindungStatus.textContent =
-    ruecksicherungErfolgreich
-      ? "🛑 Datenprüfung fehlgeschlagen. Ursprüngliche Daten zurückgesichert."
-      : "🔴 KRITISCH: Datenprüfung und Rücksicherung fehlgeschlagen.";
-
-  return;
+  throw new Error("Lokale Datenprüfung nach der Erstverbindung fehlgeschlagen.");
 }
 
 console.log(
@@ -3065,18 +2879,9 @@ const syncStandGespeichert =
     cloudKontrolle.updated_at
   );
 
-// 🔒 Bei Fehler ursprüngliche lokale Daten zurücksichern
+// 🔒 Bei Fehler aktuelle Daten bewahren und Synchronisierung sperren
 if (syncStandGespeichert !== true) {
-
-  const ruecksicherungErfolgreich =
-    sichereLokaleDatenZurueck();
-
-  cloudErstverbindungStatus.textContent =
-    ruecksicherungErfolgreich
-      ? "🛑 Synchronisierungsstand konnte nicht gespeichert werden. Lokale Daten zurückgesichert."
-      : "🔴 KRITISCH: Synchronisierungsstand und Rücksicherung fehlgeschlagen.";
-
-  return;
+  throw new Error("Synchronisierungsstand der Erstverbindung konnte nicht gespeichert werden.");
 }
 
 console.log(
@@ -3096,38 +2901,7 @@ if (
   )
 ) {
 
-  // 🔒 Bei fehlgeschlagener Abschlussprüfung
-// ursprüngliche lokale Daten zurücksichern
-const ruecksicherungErfolgreich =
-  sichereLokaleDatenZurueck();
-
-console.warn(
-  ruecksicherungErfolgreich
-    ? "🛑 Abschlussprüfung fehlgeschlagen. Ursprüngliche Daten zurückgesichert."
-    : "🔴 KRITISCH: Abschlussprüfung und Rücksicherung fehlgeschlagen."
-);
-
-  // 🛑 Datenzustand vorsichtshalber sperren
-  cloudDatenzustandUnsicher = true;
-
-  try {
-    localStorage.setItem(
-      CLOUD_DATENZUSTAND_KEY,
-      "true"
-    );
-  } catch (speicherFehler) {
-    console.error(
-      "🔴 Sicherheitssperre konnte nicht gespeichert werden:",
-      speicherFehler
-    );
-  }
-
-  cloudErstverbindungStatus.textContent =
-  ruecksicherungErfolgreich
-    ? "🛑 Abschlussprüfung fehlgeschlagen. Ursprüngliche Daten wurden zurückgesichert. Cloud-Synchronisierung bleibt gesperrt."
-    : "🔴 KRITISCH: Abschlussprüfung und Rücksicherung fehlgeschlagen. Keine weitere Synchronisierung durchführen.";
-
-  return;
+  throw new Error("Abschlussprüfung des Synchronisierungsstands der Erstverbindung fehlgeschlagen.");
 }
 
 console.log(
@@ -3135,6 +2909,12 @@ console.log(
 );
 
 // ✅ Erstverbindung erfolgreich abgeschlossen
+
+// 🔒 Kennzeichnung erst nach erfolgreicher Daten- und Sync-Prüfung entfernen
+localStorage.removeItem(CLOUD_WIEDERHERSTELLUNG_MARKER_KEY);
+if (localStorage.getItem(CLOUD_WIEDERHERSTELLUNG_MARKER_KEY) !== null) {
+  throw new Error("Unterbrechungskennzeichnung der Erstverbindung konnte nicht entfernt werden.");
+}
 
 cloudErstverbindungStatus.textContent =
   "✅ Cloud-Daten erfolgreich übernommen. App wird neu geladen.";
@@ -3161,27 +2941,7 @@ erstverbindungErfolgreich = true;
   // unkontrollierte Synchronisierung erlauben
   if (erstverbindungDatenUebernommen) {
 
-    // 🔒 Rücksicherung auch bei unerwarteten Fehlern absichern
-let ruecksicherungErfolgreich = false;
-
-try {
-  if (typeof sichereLokaleDatenZurueck === "function") {
-    ruecksicherungErfolgreich =
-      sichereLokaleDatenZurueck() === true;
-  }
-} catch (ruecksicherungsFehler) {
-  console.error(
-    "🔴 KRITISCH: Fehler während der Rücksicherung:",
-    ruecksicherungsFehler
-  );
-}
-
-console.log(
-  ruecksicherungErfolgreich
-    ? "✅ Lokale Daten nach unerwartetem Fehler zurückgesichert."
-    : "🔴 KRITISCH: Rücksicherung nach unerwartetem Fehler fehlgeschlagen."
-);
-
+    // 🔒 Aktuelle Aquarium-Daten und Sicherheitsbackup unverändert bewahren
     cloudDatenzustandUnsicher = true;
 
     try {
@@ -3197,9 +2957,8 @@ console.log(
     }
 
     cloudErstverbindungStatus.textContent =
-  ruecksicherungErfolgreich
-    ? "🛑 Erstverbindung unterbrochen. Ursprüngliche Daten zurückgesichert. Cloud-Synchronisierung bleibt vorsichtshalber gesperrt."
-    : "🔴 KRITISCH: Erstverbindung unterbrochen und Rücksicherung fehlgeschlagen. Keine weitere Synchronisierung durchführen.";
+      "🛑 Erstverbindung unterbrochen. Keine automatische Rücksicherung durchgeführt. " +
+      "Sicherheitsbackup bleibt erhalten. Cloud-Synchronisierung gesperrt. Bitte Datenzustand prüfen.";
     return;
   }
 
@@ -3294,6 +3053,8 @@ document.addEventListener("DOMContentLoaded", async function () {
   console.log("☁️ Automatische Cloud-Startprüfung beginnt.");
 
   try {
+
+  if (await window.aquariumSchreibschutz?.bereit !== true || window.aquariumSchreibschutz.darfSchreiben() !== true) return false;
 
     // 🔒 Sicherheitssperre bereits beim App-Start beachten
 if (cloudDatenzustandUnsicher) {

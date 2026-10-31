@@ -14,6 +14,7 @@ const wartungsplan = JSON.parse(
 );
 
 function speichereWartungsplan() {
+  if (window.aquariumSchreibschutz?.darfSchreiben() !== true) return;
   localStorage.setItem(
     WARTUNGSPLAN_KEY,
     JSON.stringify(wartungsplan)
@@ -117,6 +118,7 @@ function zeigeWartungsplan() {
     speichern.textContent = "Einstellungen speichern";
 
     speichern.addEventListener("click", () => {
+  if (window.aquariumSchreibschutz?.darfSchreiben() !== true) return;
       const tage = Number(intervall.value);
       const vorlauf = Number(vorwarnung.value);
 

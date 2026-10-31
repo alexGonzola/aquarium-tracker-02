@@ -3,14 +3,16 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://yjmjafgycofdzkhppqml.supabase.co; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <meta name="viewport"
         content="width=device-width, initial-scale=1">
-  <title>Aquarium Tracker 0.1</title>
+  <title>Aquarium Tracker 0.2</title>
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="icon" type="image/png" href="icon-192.png">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" defer></script>
+<script src="supabase-sdk-2.118.0.js" defer></script>
+<script src="schreibschutz.js" defer></script>
 <script src="app.js" defer></script>
 <script src="wartung.js" defer></script>
 <script src="supabase.js" defer></script>

@@ -120,6 +120,7 @@ function leseZielbereich(parameter) {
 }
 
 function speichereKhEinstellungen() {
+  if (window.aquariumSchreibschutz?.darfSchreiben() !== true) return;
   const khMin = document.getElementById("khMin");
   const khMax = document.getElementById("khMax");
   const khToleranz = document.getElementById("khToleranz");
@@ -154,6 +155,7 @@ if (einstellungen.toleranz < 0) {
 }
 
 function speichereCaEinstellungen() {
+  if (window.aquariumSchreibschutz?.darfSchreiben() !== true) return;
   const einstellungen = leseZielbereich("Ca");
 
   if (
@@ -182,6 +184,7 @@ function speichereCaEinstellungen() {
 }
 
 function speichereMgEinstellungen() {
+  if (window.aquariumSchreibschutz?.darfSchreiben() !== true) return;
   const einstellungen = leseZielbereich("Mg");
 
   if (
@@ -210,6 +213,7 @@ function speichereMgEinstellungen() {
 }
 
 function speichereNo3Einstellungen() {
+  if (window.aquariumSchreibschutz?.darfSchreiben() !== true) return;
   const einstellungen = leseZielbereich("NO3");
 
   if (
@@ -250,6 +254,7 @@ function ladeNo3Einstellungen() {
 }
 
 function speicherePo4Einstellungen() {
+  if (window.aquariumSchreibschutz?.darfSchreiben() !== true) return;
   const einstellungen = leseZielbereich("PO4");
 
   if (
@@ -290,6 +295,7 @@ function ladePo4Einstellungen() {
 }
 
 function speichereSalEinstellungen() {
+  if (window.aquariumSchreibschutz?.darfSchreiben() !== true) return;
   const einstellungen = leseZielbereich("Salinität");
 
   if (
@@ -330,6 +336,7 @@ function ladeSalEinstellungen() {
 }
 
 function speichereTempEinstellungen() {
+  if (window.aquariumSchreibschutz?.darfSchreiben() !== true) return;
   const einstellungen = leseZielbereich("Temperatur");
 
   if (
@@ -421,6 +428,7 @@ const form = document.getElementById("werteForm");
 
 form.addEventListener("submit", function(event) {
   event.preventDefault();
+  if (window.aquariumSchreibschutz?.darfSchreiben() !== true) return;
 
   const parameter =
     document.getElementById("parameter").value;
@@ -679,6 +687,7 @@ const ereignisse = JSON.parse(
 );
 
 function speichereEreignis(typ, titel, notiz, datum, automatischSynchronisieren = true) {
+  if (window.aquariumSchreibschutz?.darfSchreiben() !== true) return;
   ereignisse.push({
     id: crypto.randomUUID(),
     typ,
@@ -725,6 +734,7 @@ document.getElementById("wartungDatum").value =
 document.getElementById("wasserwechselForm")
   .addEventListener("submit", function(event) {
     event.preventDefault();
+  if (window.aquariumSchreibschutz?.darfSchreiben() !== true) return;
 
     const datum =
       document.getElementById("wasserwechselDatum").value;
@@ -754,6 +764,7 @@ document.getElementById("wasserwechselForm")
 document.getElementById("wartungForm")
   .addEventListener("submit", function(event) {
     event.preventDefault();
+  if (window.aquariumSchreibschutz?.darfSchreiben() !== true) return;
 
     const typ =
       document.getElementById("wartungTyp").value;
@@ -907,6 +918,19 @@ function stelleAquariumBackupWiederHer(
   bestaetigungErforderlich = true,
   freigabe = null
 ) {
+  const autorisierterCloudAufruf = freigabe === CLOUD_WIEDERHERSTELLUNG_FREIGABE;
+  if (window.aquariumSchreibschutz?.darfSchreiben(autorisierterCloudAufruf) !== true) {
+    return false;
+  }
+  // Ein manueller Import darf keinen laufenden Cloud-Vorgang überholen.
+  if (bestaetigungErforderlich === true && !autorisierterCloudAufruf && (
+    (typeof automatischerUploadLaeuft !== "undefined" && automatischerUploadLaeuft) ||
+    (typeof geschuetzterUploadLaeuft !== "undefined" && geschuetzterUploadLaeuft) ||
+    (typeof cloudWiederherstellungLaeuft !== "undefined" && cloudWiederherstellungLaeuft) ||
+    (typeof synchronisierungLaeuft !== "undefined" && synchronisierungLaeuft)
+  )) {
+    return false;
+  }
 
   // Zuerst prüfen, ob gültige Daten übergeben wurden
   if (!backup || typeof backup !== "object") {
@@ -1094,6 +1118,9 @@ const vorher = schluessel.map(
   key => localStorage.getItem(key)
 );
 
+// 🔒 Ursprünglichen Datenzustand für die letzte Prüfung merken
+const urspruenglicheDaten = [...vorher];
+
   console.log(
     "Gemeinsame Wiederherstellung vorbereitet:",
     backup.version
@@ -1128,20 +1155,70 @@ if (bestaetigungErforderlich === true) {
 console.log("Cloud-Wiederherstellung gestartet.");
 console.log("Betroffene Speicherplätze:", schluessel.length);
 
+// 🔒 Prüfen, ob lokale Daten seit der Vorbereitung verändert wurden
+const lokaleDatenNochUnveraendert = schluessel.every(
+  (key, index) =>
+    localStorage.getItem(key) === urspruenglicheDaten[index]
+);
+
+if (!lokaleDatenNochUnveraendert) {
+  console.warn(
+    "🔒 Wiederherstellung gestoppt: Lokale Daten wurden zwischenzeitlich verändert."
+  );
+
+  return false;
+}
+
 // Aquarium-Daten sicher speichern
+if (window.aquariumSchreibschutz?.darfSchreiben(autorisierterCloudAufruf) !== true) {
+  return false;
+}
+// 🔒 Alle Werte vor dem ersten Schreibvorgang vorbereiten
+const neueSpeichertexte = neueWerte.map(wert => JSON.stringify(wert));
+const geschriebeneIndizes = new Set();
+
+// Auch der manuelle Import braucht Originaldaten bei einem Browserabbruch.
+const manuellerMarkerKey = "aquarium-cloud-wiederherstellung-aktiv-v1";
+if (bestaetigungErforderlich === true && !autorisierterCloudAufruf) {
+  const sicherungsKey = "aquarium-json-import-sicherheitsbackup-v1:" + crypto.randomUUID();
+  const sicherungsText = JSON.stringify(Object.fromEntries(
+    schluessel.map((key, index) => [key, vorher[index]])
+  ));
+  if (localStorage.getItem(sicherungsKey) !== null) {
+    throw new Error("Ein vorhandenes Import-Sicherheitsbackup darf nicht ersetzt werden.");
+  }
+  localStorage.setItem(sicherungsKey, sicherungsText);
+  if (localStorage.getItem(sicherungsKey) !== sicherungsText) {
+    throw new Error("Import-Sicherheitsbackup konnte nicht bestätigt werden.");
+  }
+  localStorage.setItem(manuellerMarkerKey, "true");
+  if (localStorage.getItem(manuellerMarkerKey) !== "true") {
+    throw new Error("Import-Sicherheitskennzeichnung konnte nicht bestätigt werden.");
+  }
+}
+
+// Veraltete Listen im Arbeitsspeicher dürfen nach einer Übernahme nicht gespeichert werden.
+window.aquariumSchreibschutz.pausiereEingaben();
+
 try {
   schluessel.forEach((key, index) => {
+    // 🔒 Auch noch nicht geschriebene Bereiche erneut prüfen
+    if (localStorage.getItem(key) !== vorher[index]) {
+      throw new Error("Lokale Daten wurden während der Wiederherstellung verändert.");
+    }
+
     localStorage.setItem(
       key,
-      JSON.stringify(neueWerte[index])
+      neueSpeichertexte[index]
     );
+    geschriebeneIndizes.add(index);
   });
 
   // 🔒 Alle gespeicherten Daten nochmals kontrollieren
   const allesKorrektGespeichert = schluessel.every(
     (key, index) =>
       localStorage.getItem(key) ===
-      JSON.stringify(neueWerte[index])
+      neueSpeichertexte[index]
   );
 
   if (!allesKorrektGespeichert) {
@@ -1153,11 +1230,41 @@ try {
 } catch (fehler) {
 
   
-  // Bei einem Speicherfehler alte Daten wiederherstellen
+  // 🔒 Bei fremden oder nicht lesbaren Änderungen nichts zurückschreiben
+  let zustandIstErklaerbar = false;
+  try {
+    zustandIstErklaerbar = schluessel.every((key, index) => {
+      const aktuell = localStorage.getItem(key);
+      return aktuell === vorher[index] || (
+        geschriebeneIndizes.has(index) &&
+        aktuell === neueSpeichertexte[index]
+      );
+    });
+  } catch (pruefFehler) {
+    console.error("Lokaler Zustand konnte vor der Rücknahme nicht geprüft werden.", pruefFehler);
+  }
+
+  if (!zustandIstErklaerbar) {
+    window.aquariumSchreibschutz.markiereUnsicher();
+    throw new Error(
+      "KRITISCH: Lokaler Datenzustand ist ungeklärt. Keine automatische Rücknahme durchgeführt.",
+      { cause: fehler }
+    );
+  }
+
+  // Nur eigene, erfolgreich geschriebene Werte zurücknehmen
   let ruecksicherungFehlgeschlagen = false;
 
-  schluessel.forEach((key, index) => {
+  for (const index of geschriebeneIndizes) {
+    const key = schluessel[index];
     try {
+      const aktuell = localStorage.getItem(key);
+      if (aktuell === vorher[index]) {
+        continue;
+      }
+      if (aktuell !== neueSpeichertexte[index]) {
+        throw new Error("Lokale Änderung vor der Rücknahme erkannt: " + key);
+      }
       if (vorher[index] === null) {
         localStorage.removeItem(key);
       } else {
@@ -1166,10 +1273,31 @@ try {
     } catch (rollbackFehler) {
       ruecksicherungFehlgeschlagen = true;
       console.error(rollbackFehler);
+      // 🔒 Nach einer Abweichung oder einem Fehler keine weiteren Werte ändern
+      break;
     }
-  });
+  }
+
+// 🔒 Rücksicherung vollständig überprüfen
+let ruecksicherungKorrekt = false;
+try {
+  ruecksicherungKorrekt = schluessel.every(
+    (key, index) => localStorage.getItem(key) === vorher[index]
+  );
+} catch (pruefFehler) {
+  console.error("Rücknahme konnte nicht vollständig geprüft werden.", pruefFehler);
+}
+
+if (!ruecksicherungKorrekt) {
+  ruecksicherungFehlgeschlagen = true;
+
+  console.error(
+    "🔴 Rücksicherung stimmt nicht mit den ursprünglichen Daten überein."
+  );
+}
 
   if (ruecksicherungFehlgeschlagen) {
+  window.aquariumSchreibschutz.markiereUnsicher();
   throw new Error(
     "KRITISCH: Die Rücksicherung der ursprünglichen Aquarium-Daten ist fehlgeschlagen.",
     { cause: fehler }
@@ -1181,6 +1309,12 @@ try {
 }
 
 // Erfolgreiche Wiederherstellung melden
+if (bestaetigungErforderlich === true && !autorisierterCloudAufruf) {
+  localStorage.removeItem(manuellerMarkerKey);
+  if (localStorage.getItem(manuellerMarkerKey) !== null) {
+    throw new Error("Import-Unterbrechungskennzeichnung konnte nicht entfernt werden.");
+  }
+}
 return true;
 
 }
@@ -1345,6 +1479,18 @@ function stelleCloudBackupAutomatischWiederHer(backup) {
 window.stelleCloudBackupAutomatischWiederHer =
   stelleCloudBackupAutomatischWiederHer;
 
+// Auch die manuelle Cloud-Übernahme bleibt intern freigegeben und fragt nach.
+function stelleCloudBackupMitBestaetigungWiederHer(backup) {
+  return stelleAquariumBackupWiederHer(
+    backup,
+    true,
+    CLOUD_WIEDERHERSTELLUNG_FREIGABE
+  );
+}
+
+window.stelleCloudBackupMitBestaetigungWiederHer =
+  stelleCloudBackupMitBestaetigungWiederHer;
+
 // 🔒 Wiederherstellungsfunktion bereitstellen
 window.stelleAquariumBackupWiederHer =
   stelleAquariumBackupWiederHer;
@@ -1478,66 +1624,13 @@ if (
       );
     }
 
-    const bestaetigt = confirm(
-      "Alle aktuellen Aquarium-Daten werden " +
-      "durch dieses Backup ersetzt. Fortfahren?"
-    );
-
-    if (!bestaetigt) {
-      backupStatus.textContent =
-        "Wiederherstellung abgebrochen.";
+    // Gemeinsame Prüfung, Bestätigung und geschützte Rücknahme verwenden
+    const wiederhergestellt = stelleAquariumBackupWiederHer(backup);
+    if (wiederhergestellt !== true) {
+      backupStatus.textContent = "Wiederherstellung abgebrochen. Lokale Daten wurden nicht überschrieben.";
       return;
     }
 
-const schluessel = [
-  STORAGE_KEY,
-  EREIGNIS_KEY,
-  DOSIERUNG_KEY,
-  "aquarium-wartungsplan-v1"
-];
-
-const neueWerte = [
-  backup.messwerte,
-  backup.ereignisse,
-  neueDosierungen,
-  neuerWartungsplan
-];
-
-// Zielbereiche nur bei Backup-Version 4 übernehmen
-if (backup.version >= 4) {
-  for (const [parameter, speicherKey] of Object.entries(zielbereichSchluessel)) {
-    schluessel.push(speicherKey);
-    neueWerte.push(backup.zielbereiche[parameter]);
-  }
-}
-
-// Bisherige Daten für eine mögliche Wiederherstellung sichern
-const vorher = schluessel.map(
-  key => localStorage.getItem(key)
-);
-
-try {
-  schluessel.forEach((key, index) => {
-    localStorage.setItem(
-      key,
-      JSON.stringify(neueWerte[index])
-    );
-  });
-} catch (fehler) {
-  schluessel.forEach((key, index) => {
-    try {
-      if (vorher[index] === null) {
-        localStorage.removeItem(key);
-      } else {
-        localStorage.setItem(key, vorher[index]);
-      }
-    } catch (rollbackFehler) {
-      console.error(rollbackFehler);
-    }
-  });
-
-  throw fehler;
-}
     backupStatus.textContent =
       "Backup erfolgreich wiederhergestellt.";
 
@@ -1565,6 +1658,7 @@ document.getElementById("dosierungDatum").value =
 
 dosierungForm.addEventListener("submit", function(event) {
   event.preventDefault();
+  if (window.aquariumSchreibschutz?.darfSchreiben() !== true) return;
 
   const produkt =
     document.getElementById("dosierungProdukt").value;
