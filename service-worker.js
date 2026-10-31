@@ -1,4 +1,4 @@
-const CACHE_NAME = "aquarium-tracker-02-shell-0.2-riff-4";
+const CACHE_NAME = "aquarium-tracker-02-shell-0.2-riff-5";
 
 const DATEIEN = [
   "./",

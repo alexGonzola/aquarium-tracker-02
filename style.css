@@ -318,6 +318,24 @@ main { max-width: 800px; padding: 16px 20px; }
 .wert small { display: block; color: #adc6ce; font-size: 11px; line-height: 1.6; }
 button { background: var(--riff-akzent); color: #081c27; border-radius: 12px; min-height: 44px; }
 input, select { background: #081c27; border-color: #35535f; }
+/* iOS-Datumsfelder dürfen ihre intrinsische Mindestbreite nicht durchsetzen. */
+input[type="date"] {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-inline-size: 0;
+  height: 48px;
+  padding: 10px 12px;
+  font-size: 16px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+input[type="date"]::-webkit-date-and-time-value {
+  min-width: 0;
+  text-align: left;
+}
 .zeitraeume { display: flex; gap: 5px; margin-top: 16px; padding: 4px; border-radius: 12px; background: #081c27; }
 .zeitraeume button { margin: 0; padding: 10px 4px; min-width: 0; background: transparent; color: #a9c1cb; font-size: 12px; font-weight: 500; }
 .zeitraeume button[aria-pressed="true"] { background: #214650; color: #8ee8df; }
