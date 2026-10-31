@@ -16,11 +16,178 @@
 <script src="app.js" defer></script>
 <script src="wartung.js" defer></script>
 <script src="supabase.js" defer></script>
+<script src="oberflaeche.js" defer></script>
 </head>
 <body>
 
   <!-- Supabase Anmeldung -->
-<section id="cloudLogin">
+
+
+
+
+  <header class="riff-header"><div><p class="augenbraue">Mein Meerwasseraquarium · 400 Liter</p><h1>Das Riff im Blick.</h1><p id="heutigesDatum"></p></div><span class="riff-marke" aria-hidden="true">≈</span></header>
+<main>
+<section id="ansicht-dashboard" class="ansicht" aria-label="Dashboard"><div class="ueberblick"><span class="augenbraue">Dein Überblick</span><h2>Willkommen am Riff.</h2><p>Wasserwerte, Verlauf und nächste Aufgaben an einem Ort.</p></div>
+<section class="card">
+      <h2>Letzte Wasserwerte</h2>
+      <div id="aktuelleWerte" class="werte"></div>
+    </section><section class="card">
+  <h2>Wasserwerte – Verlauf</h2>
+
+  <label for="diagrammParameter">
+    Parameter auswählen
+  </label>
+
+  <select id="diagrammParameter">
+    <option value="KH">KH</option>
+    <option value="Ca">Calcium</option>
+    <option value="Mg">Magnesium</option>
+    <option value="NO3">Nitrat (NO₃)</option>
+    <option value="PO4">Phosphat (PO₄)</option>
+    <option value="Salinität">Salinität</option>
+    <option value="Temperatur">Temperatur</option>
+  </select>
+
+  <div class="zeitraeume" role="group" aria-label="Diagrammzeitraum"><button type="button" data-zeitraum="7" aria-pressed="true">7 Tage</button><button type="button" data-zeitraum="30" aria-pressed="false">30 Tage</button><button type="button" data-zeitraum="6m" aria-pressed="false">6 Monate</button></div><p id="diagrammDetails" class="dezent" aria-live="polite">Messpunkt antippen für Datum und Wert.</p><div id="diagramm" class="diagramm"></div>
+</section><section class="card"><h2>Wartungserinnerungen</h2><div id="wartungsErinnerungen"></div></section><section class="card"><h2>Anstehende Wartungen</h2><div id="naechsteWartungen"></div></section><button type="button" id="neuerEintrag">＋ Eintrag hinzufügen</button></section>
+<section id="ansicht-wasserwerte" class="ansicht" aria-label="Wasserwerte" hidden><h2 class="seitentitel" tabindex="-1">Wasserwerte & Einträge</h2><p class="dezent">Messungen, Wasserwechsel, Wartungen und Dosierungen erfassen.</p><section class="card">
+      <h2>Wasserwert eintragen</h2>
+
+      <form id="werteForm">
+        <label for="parameter">Parameter</label>
+        <select id="parameter">
+          <option value="KH">KH</option>
+          <option value="Ca">Calcium</option>
+          <option value="Mg">Magnesium</option>
+          <option value="NO3">Nitrat (NO₃)</option>
+          <option value="PO4">Phosphat (PO₄)</option>
+          <option value="Salinität">Salinität</option>
+          <option value="Temperatur">Temperatur</option>
+        </select>
+
+        <label for="messwert">Messwert</label>
+        <input id="messwert" type="number"
+               step="any" required
+               placeholder="z. B. 8.1">
+
+        <button type="submit">Wert speichern</button>
+      </form>
+    </section><section class="card">
+  <h2>💧 Wasserwechsel</h2>
+
+  <form id="wasserwechselForm">
+    <label for="wasserwechselDatum">Datum</label>
+    <input id="wasserwechselDatum"
+           type="date" required>
+
+    <label for="wasserwechselLiter">
+      Gewechselte Wassermenge (Liter)
+    </label>
+    <input id="wasserwechselLiter"
+           type="number"
+           min="0.1"
+           step="any"
+           placeholder="z. B. 50"
+           required>
+
+    <label for="wasserwechselNotiz">Notiz</label>
+    <input id="wasserwechselNotiz"
+           type="text"
+           placeholder="z. B. Nyos Pure Salz">
+
+    <button type="submit">
+      Wasserwechsel speichern
+    </button>
+  </form>
+</section><section class="card">
+  <h2>🔧 Wartung</h2>
+
+  <form id="wartungForm">
+    <label for="wartungTyp">Wartungsart</label>
+    <select id="wartungTyp">
+<option value="filtersocken">Vliesrolle gewechselt</option>
+<option value="aktivkohle">Aktivkohle gewechselt</option>
+<option value="abschaeumer">Abschäumer gereinigt</option>
+<option value="uv">UV-Anlage gereinigt</option>
+<option value="pumpen">Strömungspumpen gereinigt</option>
+<option value="sonstiges">Sonstige Wartung</option>
+    </select>
+
+    <label for="wartungDatum">Datum</label>
+    <input id="wartungDatum"
+           type="date" required>
+
+    <label for="wartungNotiz">Notiz</label>
+    <input id="wartungNotiz"
+           type="text"
+           placeholder="Optional">
+
+    <button type="submit">
+      Wartung speichern
+    </button>
+  </form>
+</section><section class="card">
+  <h2>💊 Dosierungen</h2>
+  <p>Aktuelle Dosierung ändern oder neu anlegen.</p>
+
+  <form id="dosierungForm">
+    <label for="dosierungProdukt">Produkt</label>
+    <select id="dosierungProdukt">
+      <option>Oceamo Duo</option>
+      <option>Oceamo Regulator A</option>
+      <option>Oceamo Regulator O</option>
+      <option>Phosphat+</option>
+      <option>Jod</option>
+      <option>Sonstiges</option>
+    </select>
+
+    <label for="dosierungMenge">Neue Dosiermenge</label>
+    <input id="dosierungMenge"
+           type="number"
+           min="0"
+           step="any"
+           required>
+
+    <label for="dosierungEinheit">Einheit</label>
+    <select id="dosierungEinheit">
+      <option>ml/Tag</option>
+      <option>ml/Woche</option>
+      <option>Tropfen/Tag</option>
+      <option>Tropfen/Woche</option>
+    </select>
+
+    <label for="dosierungDatum">Datum</label>
+    <input id="dosierungDatum"
+           type="date" required>
+
+    <label for="dosierungNotiz">Notiz</label>
+    <input id="dosierungNotiz"
+           type="text"
+           placeholder="z. B. KH-Verbrauch gestiegen">
+
+    <button type="submit">
+      Dosierung speichern
+    </button>
+  </form>
+
+  <h3>Aktuelle Dosierungen</h3>
+  <div id="aktuelleDosierungen"></div>
+</section></section>
+<section id="ansicht-timeline" class="ansicht" aria-label="Timeline" hidden><h2 class="seitentitel" tabindex="-1">Deine Timeline</h2><section class="card">
+  <details>
+    <summary>📜 Timeline anzeigen</summary>
+    <div id="timeline"></div>
+    <button id="timelineMehr" class="timeline-button" type="button" hidden>
+  ➕ Mehr anzeigen
+</button>
+
+<button id="timelineWeniger" class="timeline-button" type="button" hidden>
+  ➖ Weniger anzeigen
+</button>
+
+  </details>
+</section></section>
+<section id="ansicht-einstellungen" class="ansicht" aria-label="Einstellungen" hidden><h2 class="seitentitel" tabindex="-1">Einstellungen</h2><section id="cloudLogin">
   <h2>☁️ Cloud-Anmeldung</h2>
 
   <form id="cloudLoginForm">
@@ -75,114 +242,7 @@
 
 <p id="cloudSpeicherStatus"></p>
 
-</section>
-
-  <header>
-    <h1>🐠 Aquarium Tracker</h1>
-    <p>Mein Meerwasseraquarium · 400 Liter</p>
-  </header>
-
-  <main>
-   <section class="card">
-  <h2>Dashboard</h2>
-  <p>Willkommen bei deinem Aquarium Tracker!</p>
-
-  <h3>🔔 Wartungserinnerungen</h3>
-  <div id="wartungsErinnerungen"></div>
- 
-  <h3>📅 Anstehende Wartungen</h3>
-<div id="naechsteWartungen"></div>
-</section>
-
-
-    <section class="card">
-      <h2>Wasserwert eintragen</h2>
-
-      <form id="werteForm">
-        <label for="parameter">Parameter</label>
-        <select id="parameter">
-          <option value="KH">KH</option>
-          <option value="Ca">Calcium</option>
-          <option value="Mg">Magnesium</option>
-          <option value="NO3">Nitrat (NO₃)</option>
-          <option value="PO4">Phosphat (PO₄)</option>
-          <option value="Salinität">Salinität</option>
-          <option value="Temperatur">Temperatur</option>
-        </select>
-
-        <label for="messwert">Messwert</label>
-        <input id="messwert" type="number"
-               step="any" required
-               placeholder="z. B. 8.1">
-
-        <button type="submit">Wert speichern</button>
-      </form>
-    </section>
-
-<section class="card">
-  <h2>💧 Wasserwechsel</h2>
-
-  <form id="wasserwechselForm">
-    <label for="wasserwechselDatum">Datum</label>
-    <input id="wasserwechselDatum"
-           type="date" required>
-
-    <label for="wasserwechselLiter">
-      Gewechselte Wassermenge (Liter)
-    </label>
-    <input id="wasserwechselLiter"
-           type="number"
-           min="0.1"
-           step="any"
-           placeholder="z. B. 50"
-           required>
-
-    <label for="wasserwechselNotiz">Notiz</label>
-    <input id="wasserwechselNotiz"
-           type="text"
-           placeholder="z. B. Nyos Pure Salz">
-
-    <button type="submit">
-      Wasserwechsel speichern
-    </button>
-  </form>
-</section>
-
-<section class="card">
-  <h2>🔧 Wartung</h2>
-
-  <form id="wartungForm">
-    <label for="wartungTyp">Wartungsart</label>
-    <select id="wartungTyp">
-<option value="filtersocken">Vliesrolle gewechselt</option>
-<option value="aktivkohle">Aktivkohle gewechselt</option>
-<option value="abschaeumer">Abschäumer gereinigt</option>
-<option value="uv">UV-Anlage gereinigt</option>
-<option value="pumpen">Strömungspumpen gereinigt</option>
-<option value="sonstiges">Sonstige Wartung</option>
-    </select>
-
-    <label for="wartungDatum">Datum</label>
-    <input id="wartungDatum"
-           type="date" required>
-
-    <label for="wartungNotiz">Notiz</label>
-    <input id="wartungNotiz"
-           type="text"
-           placeholder="Optional">
-
-    <button type="submit">
-      Wartung speichern
-    </button>
-  </form>
-</section>
-
-    <section class="card">
-      <h2>Letzte Wasserwerte</h2>
-      <div id="aktuelleWerte" class="werte"></div>
-    </section>
-
-    <section class="card">
+</section><section class="card">
   <details>
     <summary>⚙️ Zielbereiche einstellen</summary>
 
@@ -431,92 +491,7 @@
 >
 
   </details>
-</section>
-
-<section class="card">
-  <h2>Wasserwerte – Verlauf</h2>
-
-  <label for="diagrammParameter">
-    Parameter auswählen
-  </label>
-
-  <select id="diagrammParameter">
-    <option value="KH">KH</option>
-    <option value="Ca">Calcium</option>
-    <option value="Mg">Magnesium</option>
-    <option value="NO3">Nitrat (NO₃)</option>
-    <option value="PO4">Phosphat (PO₄)</option>
-    <option value="Salinität">Salinität</option>
-    <option value="Temperatur">Temperatur</option>
-  </select>
-
-  <div id="diagramm" class="diagramm"></div>
-</section>
-
-    <section class="card">
-  <details>
-    <summary>📜 Timeline anzeigen</summary>
-    <div id="timeline"></div>
-    <button id="timelineMehr" class="timeline-button" type="button" hidden>
-  ➕ Mehr anzeigen
-</button>
-
-<button id="timelineWeniger" class="timeline-button" type="button" hidden>
-  ➖ Weniger anzeigen
-</button>
-
-  </details>
-</section>
-
-<section class="card">
-  <h2>💊 Dosierungen</h2>
-  <p>Aktuelle Dosierung ändern oder neu anlegen.</p>
-
-  <form id="dosierungForm">
-    <label for="dosierungProdukt">Produkt</label>
-    <select id="dosierungProdukt">
-      <option>Oceamo Duo</option>
-      <option>Oceamo Regulator A</option>
-      <option>Oceamo Regulator O</option>
-      <option>Phosphat+</option>
-      <option>Jod</option>
-      <option>Sonstiges</option>
-    </select>
-
-    <label for="dosierungMenge">Neue Dosiermenge</label>
-    <input id="dosierungMenge"
-           type="number"
-           min="0"
-           step="any"
-           required>
-
-    <label for="dosierungEinheit">Einheit</label>
-    <select id="dosierungEinheit">
-      <option>ml/Tag</option>
-      <option>ml/Woche</option>
-      <option>Tropfen/Tag</option>
-      <option>Tropfen/Woche</option>
-    </select>
-
-    <label for="dosierungDatum">Datum</label>
-    <input id="dosierungDatum"
-           type="date" required>
-
-    <label for="dosierungNotiz">Notiz</label>
-    <input id="dosierungNotiz"
-           type="text"
-           placeholder="z. B. KH-Verbrauch gestiegen">
-
-    <button type="submit">
-      Dosierung speichern
-    </button>
-  </form>
-
-  <h3>Aktuelle Dosierungen</h3>
-  <div id="aktuelleDosierungen"></div>
-</section>
-
-<section class="card">
+</section><section class="card">
   <h2>🔧 Wartungsintervalle</h2>
   <p>
     Lege fest, wann deine nächste Wartung fällig ist
@@ -524,9 +499,7 @@
   </p>
   
   <div id="wartungsplan"></div>
-</section>
-
-<section class="card">
+</section><section class="card">
   <h2>💾 Datensicherung</h2>
 
   <p>
@@ -549,9 +522,8 @@
   >
 
   <p id="backupStatus" aria-live="polite"></p>
-</section>
-
-</main>
+</section></section>
+</main><nav class="hauptnavigation" aria-label="Hauptnavigation"><button type="button" data-ansicht="dashboard" aria-current="page"><span aria-hidden="true">◫</span>Dashboard</button><button type="button" data-ansicht="wasserwerte"><span aria-hidden="true">∿</span>Wasserwerte</button><button type="button" data-ansicht="timeline"><span aria-hidden="true">≡</span>Timeline</button><button type="button" data-ansicht="einstellungen"><span aria-hidden="true">⚙</span>Einstellungen</button></nav>
 
 </body>
 </html>

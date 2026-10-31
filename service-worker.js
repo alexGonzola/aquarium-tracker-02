@@ -1,4 +1,4 @@
-const CACHE_NAME = "aquarium-tracker-02-shell-0.2-rc1";
+const CACHE_NAME = "aquarium-tracker-02-shell-0.2-riff-2";
 
 const DATEIEN = [
   "./",
@@ -6,6 +6,7 @@ const DATEIEN = [
   "./style.css",
   "./supabase-sdk-2.118.0.js",
   "./app.js",
+  "./oberflaeche.js",
   "./schreibschutz.js",
   "./wartung.js",
   "./supabase.js",

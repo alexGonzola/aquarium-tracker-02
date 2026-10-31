@@ -487,6 +487,18 @@ function anzeigen() {
   for (const [parameter, eintrag] of letzteWerte) {
     const karte = document.createElement("div");
     karte.className = "wert";
+    karte.tabIndex = 0;
+    karte.setAttribute("role", "button");
+    karte.setAttribute("aria-label", `${namen[parameter] || parameter}: Verlauf anzeigen`);
+    const waehleVerlauf = () => {
+      diagrammAuswahl.value = parameter;
+      zeichneDiagramm();
+      document.getElementById("diagrammParameter").focus();
+    };
+    karte.addEventListener("click", waehleVerlauf);
+    karte.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); waehleVerlauf(); }
+    });
 
     const status = pruefeWasserwert(parameter, Number(eintrag.wert));
 
@@ -504,7 +516,9 @@ karte.classList.add("status-" + status);
 const statusText = document.createElement("small");
 statusText.textContent = wasserwertStatusText(status);
     
-      karte.append(titel, wert, statusText);
+      const messdatum = document.createElement("small");
+      messdatum.textContent = new Date(eintrag.datum).toLocaleString("de-AT");
+      karte.append(titel, wert, statusText, messdatum);
     aktuelleWerte.appendChild(karte);
   }
 
@@ -524,17 +538,46 @@ diagrammAuswahl.addEventListener(
   zeichneDiagramm
 );
 
+let diagrammZeitraum = "7";
+function diagrammZeitgrenzen(zeitraum, jetzt = new Date()) {
+  const ende = new Date(jetzt);
+  const start = new Date(jetzt);
+  if (zeitraum === "6m") {
+    const tag = start.getDate();
+    start.setDate(1);
+    start.setMonth(start.getMonth() - 6);
+    const letzterTag = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
+    start.setDate(Math.min(tag, letzterTag));
+  } else { start.setDate(start.getDate() - Number(zeitraum)); }
+  return { start: start.getTime(), ende: ende.getTime() };
+}
 function zeichneDiagramm() {
   const parameter = diagrammAuswahl.value;
   const container = document.getElementById("diagramm");
+  const grenzen = diagrammZeitgrenzen(diagrammZeitraum);
+  const details = document.getElementById("diagrammDetails");
+  if (details) details.textContent = "Messpunkt antippen für Datum und Wert. Ohne Messungen liegen keine Daten vor.";
+  const zielFelder = [...document.querySelectorAll(`[data-parameter="${parameter}"]`)]
+    .filter(feld => feld.dataset.feld === "min" || feld.dataset.feld === "max");
+  const ziel = Object.fromEntries(zielFelder.map(feld => [feld.dataset.feld, Number(feld.value)]));
+  const zielGueltig = zielFelder.length === 2 && zielFelder.every(feld => feld.value.trim() !== "") &&
+    Number.isFinite(ziel.min) && Number.isFinite(ziel.max) && ziel.min < ziel.max;
 
   container.replaceChildren();
+  const zielHinweis = document.createElement("p");
+  zielHinweis.className = "diagramm-ziellegende";
+  const formatiereZiel = wert => wert.toLocaleString("de-AT", { maximumFractionDigits: 8 });
+  zielHinweis.textContent = zielGueltig
+    ? `Zielbereich: ${formatiereZiel(ziel.min)}–${formatiereZiel(ziel.max)} ${einheiten[parameter] || ""} · aktuelle Einstellung`
+    : "Kein gültiger Zielbereich eingestellt.";
+  container.appendChild(zielHinweis);
 
   const daten = eintraege
     .filter(e =>
       e.parameter === parameter &&
       Number.isFinite(Number(e.wert)) &&
-      !Number.isNaN(Date.parse(e.datum))
+      !Number.isNaN(Date.parse(e.datum)) &&
+      Date.parse(e.datum) >= grenzen.start && Date.parse(e.datum) <= grenzen.ende
     )
     .sort((a, b) =>
       new Date(a.datum) - new Date(b.datum)
@@ -544,7 +587,7 @@ function zeichneDiagramm() {
     const hinweis = document.createElement("p");
     hinweis.className = "hinweis";
     hinweis.textContent =
-      "Noch keine Messwerte für diesen Parameter.";
+      "Keine Messwerte für diesen Parameter im gewählten Zeitraum.";
     container.appendChild(hinweis);
     return;
   }
@@ -576,16 +619,18 @@ function zeichneDiagramm() {
   });
 
   const werte = daten.map(e => Number(e.wert));
-  const minWert = Math.min(...werte);
-  const maxWert = Math.max(...werte);
-  const abstand = Math.max((maxWert - minWert) * 0.15, 0.01);
+  const minWert = werte.reduce((a, b) => Math.min(a, b), Infinity);
+  const maxWert = werte.reduce((a, b) => Math.max(a, b), -Infinity);
+  const skalaMin = zielGueltig ? Math.min(minWert, ziel.min) : minWert;
+  const skalaMax = zielGueltig ? Math.max(maxWert, ziel.max) : maxWert;
+  const abstand = Math.max((skalaMax - skalaMin) * 0.15, 0.01);
 
-  const yMin = minWert - abstand;
-  const yMax = maxWert + abstand;
+  const yMin = skalaMin - abstand;
+  const yMax = skalaMax + abstand;
 
   const zeiten = daten.map(e => new Date(e.datum).getTime());
-  const xMin = Math.min(...zeiten);
-  const xMax = Math.max(...zeiten);
+  const xMin = grenzen.start;
+  const xMax = grenzen.ende;
 
   function xPosition(zeit, index) {
     if (xMin === xMax) {
@@ -601,6 +646,20 @@ function zeichneDiagramm() {
     return oben +
       (1 - (wert - yMin) / (yMax - yMin)) *
       (hoehe - oben - unten);
+  }
+
+  if (zielGueltig) {
+    const band = element("rect", {
+      x: links, y: yPosition(ziel.max), width: breite - links - rechts,
+      height: yPosition(ziel.min) - yPosition(ziel.max), class: "zielband"
+    });
+    band.appendChild(element("title", {}, zielHinweis.textContent));
+    svg.appendChild(band);
+    for (const grenze of [ziel.min, ziel.max]) {
+      svg.appendChild(element("line", {
+        x1: links, x2: breite - rechts, y1: yPosition(grenze), y2: yPosition(grenze), class: "zielgrenze"
+      }));
+    }
   }
 
   for (let i = 0; i <= 4; i++) {
@@ -640,7 +699,10 @@ function zeichneDiagramm() {
     const kreis = element("circle", {
       cx: p.x,
       cy: p.y,
-      r: 5,
+      r: daten.length > 60 ? 3 : 5,
+      tabindex: "0",
+      role: "button",
+      "aria-label": `${new Date(p.datum).toLocaleString("de-AT")}: ${p.wert} ${einheiten[parameter]}`,
       class: "punkt"
     });
 
@@ -649,6 +711,13 @@ function zeichneDiagramm() {
       `${p.wert} ${einheiten[parameter]}`
     ));
 
+    const zeigeMesspunkt = () => {
+      if (details) details.textContent = new Date(p.datum).toLocaleString("de-AT") + ": " + p.wert + " " + einheiten[parameter];
+    };
+    kreis.addEventListener("click", zeigeMesspunkt);
+    kreis.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); zeigeMesspunkt(); }
+    });
     svg.appendChild(kreis);
   }
 
