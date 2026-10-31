@@ -1876,6 +1876,9 @@ wenigerButton.hidden = timelineAnzahl <= 10;
       karte.appendChild(notiz);
     }
 
+    if (eintrag.typ === "wartung" && typeof window.erstelleWartungsAktionen === "function") {
+      karte.appendChild(window.erstelleWartungsAktionen(eintrag));
+    }
     container.appendChild(karte);
   }
 
