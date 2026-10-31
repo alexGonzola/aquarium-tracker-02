@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
   async function pruefen() {
     try {
       await navigator.serviceWorker.ready;
-      const cache = await caches.open("aquarium-cloud-test-1346-1");
+      const cache = await caches.open("aquarium-cloud-test-1346-2");
       const dateien = ["./","./index.html","./style.css","./testspeicher.js","./supabase-sdk-2.118.0.js","./cloud-guard.js","./cloud-config.js","./schreibschutz.js","./app.js","./wartung.js","./supabase.js","./cloud-ui.js","./offline-ui.js","./manifest.json","./icon-192.png","./icon-512.png"];
       const vorhanden = await Promise.all(dateien.map(pfad => cache.match(new URL(pfad, location.href).href)));
       if (vorhanden.some(antwort => !antwort)) {

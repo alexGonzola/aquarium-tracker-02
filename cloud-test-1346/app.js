@@ -918,11 +918,12 @@ function stelleAquariumBackupWiederHer(
   bestaetigungErforderlich = true,
   freigabe = null
 ) {
-  if (window.aquariumSchreibschutz?.darfSchreiben(bestaetigungErforderlich === false) !== true) {
+  const autorisierterCloudAufruf = freigabe === CLOUD_WIEDERHERSTELLUNG_FREIGABE;
+  if (window.aquariumSchreibschutz?.darfSchreiben(autorisierterCloudAufruf) !== true) {
     return false;
   }
   // Ein manueller Import darf keinen laufenden Cloud-Vorgang überholen.
-  if (bestaetigungErforderlich === true && (
+  if (bestaetigungErforderlich === true && !autorisierterCloudAufruf && (
     (typeof automatischerUploadLaeuft !== "undefined" && automatischerUploadLaeuft) ||
     (typeof geschuetzterUploadLaeuft !== "undefined" && geschuetzterUploadLaeuft) ||
     (typeof cloudWiederherstellungLaeuft !== "undefined" && cloudWiederherstellungLaeuft) ||
@@ -1169,7 +1170,7 @@ if (!lokaleDatenNochUnveraendert) {
 }
 
 // Aquarium-Daten sicher speichern
-if (window.aquariumSchreibschutz?.darfSchreiben(bestaetigungErforderlich === false) !== true) {
+if (window.aquariumSchreibschutz?.darfSchreiben(autorisierterCloudAufruf) !== true) {
   return false;
 }
 // 🔒 Alle Werte vor dem ersten Schreibvorgang vorbereiten
@@ -1178,7 +1179,7 @@ const geschriebeneIndizes = new Set();
 
 // Auch der manuelle Import braucht Originaldaten bei einem Browserabbruch.
 const manuellerMarkerKey = "aquarium-cloud-wiederherstellung-aktiv-v1";
-if (bestaetigungErforderlich === true) {
+if (bestaetigungErforderlich === true && !autorisierterCloudAufruf) {
   const sicherungsKey = "aquarium-json-import-sicherheitsbackup-v1:" + crypto.randomUUID();
   const sicherungsText = JSON.stringify(Object.fromEntries(
     schluessel.map((key, index) => [key, vorher[index]])
@@ -1308,7 +1309,7 @@ if (!ruecksicherungKorrekt) {
 }
 
 // Erfolgreiche Wiederherstellung melden
-if (bestaetigungErforderlich === true) {
+if (bestaetigungErforderlich === true && !autorisierterCloudAufruf) {
   aquariumCloudTestspeicher.removeItem(manuellerMarkerKey);
   if (aquariumCloudTestspeicher.getItem(manuellerMarkerKey) !== null) {
     throw new Error("Import-Unterbrechungskennzeichnung konnte nicht entfernt werden.");
@@ -1477,6 +1478,18 @@ function stelleCloudBackupAutomatischWiederHer(backup) {
 
 window.stelleCloudBackupAutomatischWiederHer =
   stelleCloudBackupAutomatischWiederHer;
+
+// Auch die manuelle Cloud-Übernahme bleibt intern freigegeben und fragt nach.
+function stelleCloudBackupMitBestaetigungWiederHer(backup) {
+  return stelleAquariumBackupWiederHer(
+    backup,
+    true,
+    CLOUD_WIEDERHERSTELLUNG_FREIGABE
+  );
+}
+
+window.stelleCloudBackupMitBestaetigungWiederHer =
+  stelleCloudBackupMitBestaetigungWiederHer;
 
 // 🔒 Wiederherstellungsfunktion bereitstellen
 window.stelleAquariumBackupWiederHer =

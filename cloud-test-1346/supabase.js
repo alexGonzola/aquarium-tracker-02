@@ -2347,12 +2347,13 @@ if (
 
 // 🔒 Automatische Wiederherstellung nur über den
 // dafür vorgesehenen Aufrufweg durchführen
-if (
-  automatischerDownload === true &&
-  typeof window.stelleCloudBackupAutomatischWiederHer !== "function"
-) {
+const stelleCloudDatenWiederHer = automatischerDownload === true
+  ? window.stelleCloudBackupAutomatischWiederHer
+  : window.stelleCloudBackupMitBestaetigungWiederHer;
+
+if (typeof stelleCloudDatenWiederHer !== "function") {
   throw new Error(
-    "Automatische Cloud-Wiederherstellung nicht verfügbar."
+    "Geschützte Cloud-Wiederherstellung nicht verfügbar."
   );
 }
 
@@ -2378,9 +2379,7 @@ if (
 // 🔒 Kennzeichnen, dass die Wiederherstellung beginnt
 cloudWiederherstellungGestartet = true;
 
-const ergebnis = automatischerDownload === true
-  ? window.stelleCloudBackupAutomatischWiederHer(cloudJetzt.daten)
-  : window.stelleAquariumBackupWiederHer(cloudJetzt.daten);
+const ergebnis = stelleCloudDatenWiederHer(cloudJetzt.daten);
 
  if (ergebnis === false) {
 

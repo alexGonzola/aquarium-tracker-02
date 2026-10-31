@@ -1,4 +1,4 @@
-const CACHE_NAME = "aquarium-cloud-test-1346-1";
+const CACHE_NAME = "aquarium-cloud-test-1346-2";
 
 const DATEIEN = [
   "./",
